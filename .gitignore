@@ -220,4 +220,6 @@ __marimo__/
 # Node / Frontend
 node_modules/
 dist/
-frontend/.env.DS_Store
+frontend/.env
+.DS_Store
+.DS_Store

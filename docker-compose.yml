@@ -1,0 +1,47 @@
+services:
+  db:
+    image: postgres:16
+    container_name: clms_db
+    restart: always
+    environment:
+      POSTGRES_DB: clms_db
+      POSTGRES_USER: clms_user
+      POSTGRES_PASSWORD: yourpassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  backend:
+    build: ./backend
+    container_name: clms_backend
+    restart: always
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+psycopg2://clms_user:yourpassword@db:5432/clms_db
+      SECRET_KEY: your-secret-key-here
+      ALGORITHM: HS256
+      ACCESS_TOKEN_EXPIRE_MINUTES: 30
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    container_name: clms_frontend
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      VITE_API_BASE_URL: http://127.0.0.1:8000
+      CHOKIDAR_USEPOLLING: "true"
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+
+volumes:
+  pgdata:
