@@ -13,3 +13,6 @@ def db_check():
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
     return {"database": "connected"}
+
+from app.routers import auth
+app.include_router(auth.router)
