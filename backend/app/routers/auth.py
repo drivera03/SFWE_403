@@ -1,9 +1,10 @@
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from app.schemas.auth import LoginRequest, TokenResponse
 from app.security import verify_password, create_access_token, password_hash, DUMMY_HASH
+from app.notifications import emit_lockout_notification
 
 logger = logging.getLogger("uvicorn.error")
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -15,6 +16,7 @@ LOCKOUT_MINUTES = 15
 _FAKE_USERS = {
     "tech@example.com": {
         "id": 1,
+        "email": "tech@example.com",
         "role": "technician",
         "password_hash": password_hash.hash("changeme123"),
         "failed_login_attempts": 0,
@@ -22,6 +24,7 @@ _FAKE_USERS = {
     },
     "mason@example.com": {
         "id": 2,
+        "email": "mason@example.com",
         "role": "manager",
         "password_hash": password_hash.hash("password456"),
         "failed_login_attempts": 0,
@@ -43,8 +46,11 @@ def reset_failed_logins(user: dict) -> None:
     user["failed_login_attempts"] = 0
     user["locked_until"] = None
 
-def lock_account(user: dict) -> None:
+def lock_account(user: dict, email: str | None = None) -> None:
     user["locked_until"] = now_utc() + timedelta(minutes=LOCKOUT_MINUTES)
+    user_id = user.get("id")
+    user_email = email or user.get("email", "unknown")
+    emit_lockout_notification(user_id=user_id, email=user_email, locked_until=user["locked_until"])
 
 def is_locked(user: dict) -> bool:
     return user["locked_until"] is not None and user["locked_until"] > now_utc()
@@ -81,10 +87,24 @@ def login(body: LoginRequest):
             count = record_failed_login(user)
             logger.warning("Failed login for user_id=%s (attempts=%s)", user["id"], count)
             if count >= MAX_FAILED_ATTEMPTS:
-                lock_account(user)
+                lock_account(user, email=body.email)
                 logger.warning("Account locked user_id=%s until %s", user["id"], user["locked_until"])
                 raise locked_error(user)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
     reset_failed_logins(user)
     return TokenResponse(access_token=create_access_token(str(user["id"]), user["role"]))
+
+
+from app.dependencies import get_current_user
+from app.models.user import User
+
+
+@router.get("/me")
+def get_me(current_user: User = Depends(get_current_user)):
+    """Return the profile of the currently authenticated user."""
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "role": current_user.role,
+    }

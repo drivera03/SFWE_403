@@ -53,3 +53,10 @@ def decode_access_token(token: str) -> dict[str, Any]:
     if type(payload["exp"]) is not int:
         raise jwt.InvalidTokenError("exp must be an integer NumericDate")
     return payload
+
+
+def __getattr__(name: str) -> Any:
+    if name in ("get_current_user", "require_role"):
+        from app import dependencies
+        return getattr(dependencies, name)
+    raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
