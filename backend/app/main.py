@@ -30,3 +30,7 @@ def db_check():
 
 from app.routers import auth
 app.include_router(auth.router)
+
+
+from app.routers import patients
+app.include_router(patients.router)
