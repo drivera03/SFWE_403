@@ -28,5 +28,12 @@ def db_check():
         connection.execute(text("SELECT 1"))
     return {"database": "connected"}
 
-from app.routers import auth
+from app.database import engine, Base
+from app import models  # Ensures all models are registered with Base.metadata
+from app.routers import auth, patients
+
+# Auto-create tables if they don't exist
+Base.metadata.create_all(bind=engine)
+
 app.include_router(auth.router)
+app.include_router(patients.router)
