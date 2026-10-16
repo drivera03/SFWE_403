@@ -2,7 +2,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, UserResponse
+from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, UserResponse, ChangePasswordRequest
 from app.security import verify_password, create_access_token, password_hash, DUMMY_HASH
 from app.notifications import emit_lockout_notification
 from app.dependencies import get_current_user
@@ -123,3 +123,32 @@ def get_me(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "role": current_user.role,
     }
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(body: ChangePasswordRequest, current_user: User = Depends(get_current_user)):
+    """Change the password of the currently authenticated user."""
+    user = get_user_by_email(current_user.email)
+    if not user:
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
+
+    clear_expired_lock(user)
+    if is_locked(user):
+        # Same rule as login: checked before the password so a lock can't be bypassed.
+        logger.warning("Password change blocked, account locked user_id=%s", user["id"])
+        raise locked_error(user)
+
+    if not verify_password(body.current_password, user["password_hash"]):
+        count = record_failed_login(user)
+        logger.warning("Failed password change for user_id=%s (attempts=%s)", user["id"], count)
+        if count >= MAX_FAILED_ATTEMPTS:
+            lock_account(user, email=user["email"])
+            logger.warning("Account locked user_id=%s until %s", user["id"], user["locked_until"])
+            raise locked_error(user)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect")
+
+    if verify_password(body.new_password, user["password_hash"]):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "New password must be different from the current password")
+
+    user["password_hash"] = password_hash.hash(body.new_password)
+    reset_failed_logins(user)
+    logger.info("Password changed user_id=%s", user["id"])

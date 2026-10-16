@@ -204,6 +204,16 @@ body {
   font-weight: 500;
 }
 
+.auth-success {
+  background: #f0fdf4;
+  border: 1px solid #dcfce7;
+  color: #15803d;
+  padding: 12px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
 .auth-footer {
   margin-top: 24px;
   font-size: 13px;
