@@ -1,12 +1,15 @@
 from fastapi import FastAPI
 from sqlalchemy import text
-from app.database import engine
+from app.database import engine, Base
 from fastapi.middleware.cors import CORSMiddleware
+from app import models
 
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
