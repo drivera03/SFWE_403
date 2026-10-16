@@ -2,9 +2,11 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, UserResponse
 from app.security import verify_password, create_access_token, password_hash, DUMMY_HASH
 from app.notifications import emit_lockout_notification
+from app.dependencies import get_current_user
+from app.models.user import User
 
 logger = logging.getLogger("uvicorn.error")
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -20,7 +22,7 @@ _FAKE_USERS = {
         "role": "technician",
         "password_hash": password_hash.hash("changeme123"),
         "failed_login_attempts": 0,
-        "locked_until": None,  # new
+        "locked_until": None,
     },
     "mason@example.com": {
         "id": 2,
@@ -28,12 +30,12 @@ _FAKE_USERS = {
         "role": "manager",
         "password_hash": password_hash.hash("password456"),
         "failed_login_attempts": 0,
-        "locked_until": None,  # new
+        "locked_until": None,
     }
 }
 
 def get_user_by_email(email: str):
-    return _FAKE_USERS.get(email)
+    return _FAKE_USERS.get(email.lower())
 
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
@@ -69,6 +71,24 @@ def locked_error(user: dict) -> HTTPException:
         headers={"Retry-After": str(retry_after)},
     )
 
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def register(body: RegisterRequest):
+    email = body.email.strip().lower()
+    if email in _FAKE_USERS:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "An account with this email already exists.")
+
+    new_id = len(_FAKE_USERS) + 1
+    _FAKE_USERS[email] = {
+        "id": new_id,
+        "email": email,
+        "role": body.role,
+        "password_hash": password_hash.hash(body.password),
+        "failed_login_attempts": 0,
+        "locked_until": None,
+    }
+    logger.info("Registered new user email=%s id=%s role=%s", email, new_id, body.role)
+    return UserResponse(id=new_id, email=email, role=body.role)
+
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest):
     user = get_user_by_email(body.email)
@@ -95,11 +115,6 @@ def login(body: LoginRequest):
     reset_failed_logins(user)
     return TokenResponse(access_token=create_access_token(str(user["id"]), user["role"]))
 
-
-from app.dependencies import get_current_user
-from app.models.user import User
-
-
 @router.get("/me")
 def get_me(current_user: User = Depends(get_current_user)):
     """Return the profile of the currently authenticated user."""
@@ -107,4 +122,4 @@ def get_me(current_user: User = Depends(get_current_user)):
         "id": current_user.id,
         "email": current_user.email,
         "role": current_user.role,
-    }
+    }
