@@ -1,12 +1,16 @@
 from fastapi import FastAPI
 from sqlalchemy import text
-from app.database import engine
+from app.database import engine, Base
+from app import models  # noqa: F401 - registers User and Patient so create_all knows about them
 from fastapi.middleware.cors import CORSMiddleware
 
 origins = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+
+# Create any missing tables (users, patients) when the app starts
+Base.metadata.create_all(bind=engine)
 
 app = FastAPI()
 
