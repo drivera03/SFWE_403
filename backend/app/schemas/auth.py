@@ -17,3 +17,7 @@ class UserResponse(BaseModel):
     id: int
     email: str
     role: str
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

@@ -31,7 +31,13 @@ export default function Login() {
     <AuthLayout
       title="Sign in"
       subtitle="Use the account your Lab Manager created for you."
-      footer={<>Need an account? <Link to="/signup">Create one</Link></>}
+      footer={
+  <>
+    Need an account? <Link to="/signup">Create one</Link>
+    <br />
+    <Link to="/change-password">Change password</Link>
+  </>
+}
     >
       <form className="auth-form" onSubmit={handleSubmit}>
         {error && <div className="auth-error" role="alert">{error}</div>}
