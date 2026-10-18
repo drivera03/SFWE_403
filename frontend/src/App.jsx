@@ -3,6 +3,7 @@ import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ChangePassword from "./pages/ChangePassword";
+import Patients from "./pages/Patients";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/change-password" element={<ChangePassword />} />
+          <Route path="/patients" element={<Patients />} />
         </Route>
       </Routes>
     </BrowserRouter>
