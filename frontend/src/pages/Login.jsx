@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import { login } from "../services/auth";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -19,7 +20,12 @@ export default function Login() {
       const data = await login(form.email, form.password);
       // TODO: move this into your AuthContext / useAuth() once it exists
       localStorage.setItem("token", data.access_token);
-      navigate("/"); // TODO: send users to their dashboard
+      const from = location.state?.from;
+      const destination = from?.pathname?.startsWith("/") &&
+        !from.pathname.startsWith("//") && from.pathname !== "/login"
+        ? { pathname: from.pathname, search: from.search, hash: from.hash }
+        : "/";
+      navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {

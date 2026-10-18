@@ -1,5 +1,18 @@
 const API_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
 
+export async function getCurrentUser(token, signal) {
+  const res = await fetch(`${API_URL}/auth/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal,
+  });
+  if (!res.ok) {
+    const error = new Error("Unable to verify your session.");
+    error.status = res.status;
+    throw error;
+  }
+  return res.json();
+}
+
 async function post(path, body, { auth = false } = {}) {
   const headers = { "Content-Type": "application/json" };
   if (auth) headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
