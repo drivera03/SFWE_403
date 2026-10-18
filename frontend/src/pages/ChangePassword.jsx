@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import { changePassword } from "../services/auth";
 
@@ -7,13 +7,11 @@ const MIN_LENGTH = 8; // TODO: match the rule used by RegisterRequest.password
 
 export default function ChangePassword() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [form, setForm] = useState({ current: "", next: "", confirm: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // TODO: replace with your AuthContext / route guard once it exists
-  if (!localStorage.getItem("token")) return <Navigate to="/login" replace />;
 
   const update = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -44,7 +42,7 @@ export default function ChangePassword() {
       if (err.status === 401) {
         // Token missing or expired
         localStorage.removeItem("token");
-        navigate("/login");
+        navigate("/login", { replace: true, state: { from: location } });
         return;
       }
       if (err.status === 423 && err.retryAfter) {
