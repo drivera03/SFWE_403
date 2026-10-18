@@ -3,12 +3,20 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import or_
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.dependencies import get_current_user, require_role
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, UserResponse, UnlockResponse
+from app.schemas.auth import (
+    LoginRequest,
+    TokenResponse,
+    RegisterRequest,
+    UserResponse,
+    UnlockResponse,
+    ChangePasswordRequest,
+)
 from app.security import verify_password, create_access_token, password_hash, DUMMY_HASH
 from app.notifications import emit_lockout_notification
 from app.activity_logger import log_activity
@@ -36,46 +44,70 @@ _FAKE_USERS = {
         "password_hash": password_hash.hash("password456"),
         "failed_login_attempts": 0,
         "locked_until": None,
-    }
+    },
 }
-
-
-def get_user_by_email(email: str):
-    return _FAKE_USERS.get(email)
 
 
 def now_utc() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def record_failed_login(user: dict) -> int:
-    user["failed_login_attempts"] += 1
-    return user["failed_login_attempts"]
+def as_utc(value: datetime | None) -> datetime | None:
+    # SQLite returns naive datetimes even for timezone-aware columns; treat them as UTC.
+    if value is not None and value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value
 
 
-def reset_failed_logins(user: dict) -> None:
-    user["failed_login_attempts"] = 0
-    user["locked_until"] = None
+def get_user_by_email(db: Session, email: str) -> User | None:
+    cleaned = email.strip().lower()
+    return db.query(User).filter(
+        or_(User.email == cleaned, User.username == email.strip())
+    ).first()
 
 
-def lock_account(user: dict, email: str | None = None) -> None:
-    user["locked_until"] = now_utc() + timedelta(minutes=LOCKOUT_MINUTES)
-    user_id = user.get("id")
-    user_email = email or user.get("email", "unknown")
-    emit_lockout_notification(user_id=user_id, email=user_email, locked_until=user["locked_until"])
+def record_failed_login(db: Session, user: User) -> int:
+    user.failed_login_attempts = (user.failed_login_attempts or 0) + 1
+    user.failed_attempts = user.failed_login_attempts
+    db.commit()
+    return user.failed_login_attempts
 
 
-def is_locked(user: dict) -> bool:
-    return user["locked_until"] is not None and user["locked_until"] > now_utc()
+def reset_failed_logins(db: Session, user: User) -> None:
+    user.failed_login_attempts = 0
+    user.failed_attempts = 0
+    user.locked_until = None
+    db.commit()
 
 
-def clear_expired_lock(user: dict) -> None:
-    if user["locked_until"] is not None and user["locked_until"] <= now_utc():
-        reset_failed_logins(user)
+def lock_account(db: Session, user: User, email: str | None = None) -> None:
+    locked_until = now_utc() + timedelta(minutes=LOCKOUT_MINUTES)
+    user.locked_until = locked_until
+    user.is_locked = True
+    db.commit()
+    emit_lockout_notification(user_id=user.id, email=email or user.email, locked_until=locked_until)
 
 
-def locked_error(user: dict) -> HTTPException:
-    retry_after = max(1, int((user["locked_until"] - now_utc()).total_seconds()))
+def is_locked(user: User) -> bool:
+    if user.is_locked and user.locked_until is None:
+        return True
+    locked_until = as_utc(user.locked_until)
+    return locked_until is not None and locked_until > now_utc()
+
+
+def clear_expired_lock(db: Session, user: User) -> None:
+    locked_until = as_utc(user.locked_until)
+    if locked_until is not None and locked_until <= now_utc():
+        user.is_locked = False
+        reset_failed_logins(db, user)
+
+
+def locked_error(user: User) -> HTTPException:
+    locked_until = as_utc(user.locked_until)
+    if locked_until:
+        retry_after = max(1, int((locked_until - now_utc()).total_seconds()))
+    else:
+        retry_after = LOCKOUT_MINUTES * 60
     return HTTPException(
         status.HTTP_423_LOCKED,
         "Account temporarily locked. Try again later.",
@@ -84,28 +116,28 @@ def locked_error(user: dict) -> HTTPException:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest):
-    user = get_user_by_email(body.email)
+def login(body: LoginRequest, db: Session = Depends(get_db)):
+    user = get_user_by_email(db, body.email)
 
     if user:
-        clear_expired_lock(user)
+        clear_expired_lock(db, user)
         if is_locked(user):
-            logger.warning("Login blocked, account locked user_id=%s", user["id"])
+            logger.warning("Login blocked, account locked user_id=%s", user.id)
             raise locked_error(user)
 
-    ok = verify_password(body.password, user["password_hash"] if user else DUMMY_HASH)
+    ok = verify_password(body.password, user.password_hash if user else DUMMY_HASH)
     if not user or not ok:
         if user:
-            count = record_failed_login(user)
-            logger.warning("Failed login for user_id=%s (attempts=%s)", user["id"], count)
+            count = record_failed_login(db, user)
+            logger.warning("Failed login for user_id=%s (attempts=%s)", user.id, count)
             if count >= MAX_FAILED_ATTEMPTS:
-                lock_account(user, email=body.email)
-                logger.warning("Account locked user_id=%s until %s", user["id"], user["locked_until"])
+                lock_account(db, user, email=body.email)
+                logger.warning("Account locked user_id=%s until %s", user.id, user.locked_until)
                 raise locked_error(user)
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Invalid credentials")
 
-    reset_failed_logins(user)
-    return TokenResponse(access_token=create_access_token(str(user["id"]), user["role"]))
+    reset_failed_logins(db, user)
+    return TokenResponse(access_token=create_access_token(str(user.id), user.role))
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
@@ -119,18 +151,27 @@ def register(
     Restricted to lab_manager only.
     Password is saved hashed with bcrypt and never logged or returned.
     """
-    # Check for duplicate username
-    existing_user = db.query(User).filter(
-        or_(User.username == body.username, User.email == body.username)
-    ).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Username already exists",
-        )
+    username = body.username or (body.email.split("@")[0] if body.email else None)
+    email = body.email or (f"{username}@clms.local" if username else None)
 
-    if body.email:
-        existing_email = db.query(User).filter(User.email == body.email).first()
+    if not username and not email:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, "Username or email is required")
+
+    # Check for duplicate username
+    if username:
+        existing_user = db.query(User).filter(
+            or_(User.username == username, User.email == username)
+        ).first()
+        if existing_user:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Username already exists",
+            )
+
+    if email:
+        existing_email = db.query(User).filter(
+            or_(User.email == email.strip().lower(), User.username == email)
+        ).first()
         if existing_email:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
@@ -141,8 +182,8 @@ def register(
     pw_hash = password_hash.hash(body.password)
 
     new_user = User(
-        username=body.username,
-        email=body.email or (body.username if "@" in body.username else f"{body.username}@clms.local"),
+        username=username,
+        email=email.strip().lower() if email else None,
         password_hash=pw_hash,
         role=body.role,
         is_locked=False,
@@ -151,18 +192,23 @@ def register(
         locked_until=None,
     )
     db.add(new_user)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "User already exists")
     db.refresh(new_user)
 
-    # Keep _FAKE_USERS in sync for lookup
-    _FAKE_USERS[new_user.email] = {
-        "id": new_user.id,
-        "email": new_user.email,
-        "role": new_user.role,
-        "password_hash": new_user.password_hash,
-        "failed_login_attempts": 0,
-        "locked_until": None,
-    }
+    # Keep _FAKE_USERS in sync for lookup if email is present
+    if new_user.email:
+        _FAKE_USERS[new_user.email] = {
+            "id": new_user.id,
+            "email": new_user.email,
+            "role": new_user.role,
+            "password_hash": new_user.password_hash,
+            "failed_login_attempts": 0,
+            "locked_until": None,
+        }
 
     # Record event in activity log
     log_activity(
@@ -174,6 +220,7 @@ def register(
         details={"username": new_user.username, "email": new_user.email, "role": new_user.role},
     )
 
+    logger.info("Registered new user email=%s id=%s role=%s", new_user.email, new_user.id, new_user.role)
     return new_user
 
 
@@ -236,3 +283,34 @@ def get_me(current_user: User = Depends(get_current_user)):
         "is_locked": current_user.is_locked,
         "failed_attempts": current_user.failed_attempts,
     }
+
+
+@router.post("/change-password", status_code=status.HTTP_204_NO_CONTENT)
+def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Change the password of the currently authenticated user."""
+    user = current_user
+
+    clear_expired_lock(db, user)
+    if is_locked(user):
+        logger.warning("Password change blocked, account locked user_id=%s", user.id)
+        raise locked_error(user)
+
+    if not verify_password(body.current_password, user.password_hash):
+        count = record_failed_login(db, user)
+        logger.warning("Failed password change for user_id=%s (attempts=%s)", user.id, count)
+        if count >= MAX_FAILED_ATTEMPTS:
+            lock_account(db, user)
+            logger.warning("Account locked user_id=%s until %s", user.id, user.locked_until)
+            raise locked_error(user)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Current password is incorrect")
+
+    if verify_password(body.new_password, user.password_hash):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "New password must be different from the current password")
+
+    user.password_hash = password_hash.hash(body.new_password)
+    reset_failed_logins(db, user)
+    logger.info("Password changed user_id=%s", user.id)

@@ -1,7 +1,12 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
+import Home from './pages/Home';
+import Login from './pages/Login';
+import Signup from './pages/Signup';
+import ChangePassword from './pages/ChangePassword';
+import ProtectedRoute from './components/ProtectedRoute';
 import PatientList from './pages/PatientList';
 import PatientDetail from './pages/PatientDetail';
 import PatientEdit from './pages/PatientEdit';
@@ -11,20 +16,52 @@ import './index.css';
 export default function App() {
   return (
     <AuthProvider>
-      <Router>
+      <BrowserRouter>
         <div className="app-shell">
-          <Navbar />
-          <main className="main-content">
-            <Routes>
-              <Route path="/" element={<Navigate to="/patients" replace />} />
-              <Route path="/patients" element={<PatientList />} />
-              <Route path="/patients/:id" element={<PatientDetail />} />
-              <Route path="/patients/:id/edit" element={<PatientEdit />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/signup" element={<Signup />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/change-password" element={<ChangePassword />} />
+            </Route>
+            <Route
+              path="/patients"
+              element={
+                <>
+                  <Navbar />
+                  <main className="main-content">
+                    <PatientList />
+                  </main>
+                </>
+              }
+            />
+            <Route
+              path="/patients/:id"
+              element={
+                <>
+                  <Navbar />
+                  <main className="main-content">
+                    <PatientDetail />
+                  </main>
+                </>
+              }
+            />
+            <Route
+              path="/patients/:id/edit"
+              element={
+                <>
+                  <Navbar />
+                  <main className="main-content">
+                    <PatientEdit />
+                  </main>
+                </>
+              }
+            />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </div>
-      </Router>
+      </BrowserRouter>
     </AuthProvider>
   );
 }

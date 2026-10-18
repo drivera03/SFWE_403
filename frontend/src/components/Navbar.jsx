@@ -1,11 +1,38 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { BeakerIcon } from './Icons';
 
 export default function Navbar() {
-  const { currentUser, switchRole } = useAuth();
   const location = useLocation();
+  const auth = useAuth ? useAuth() : null;
+  const currentUser = auth?.currentUser;
+  const switchRole = auth?.switchRole;
 
+  // Render public landing navigation on home page ("/")
+  if (location.pathname === '/') {
+    return (
+      <nav className="nav">
+        <div className="container nav-inner">
+          <a href="#top" className="logo">
+            <span className="logo-icon">
+              <BeakerIcon size={22} />
+            </span>
+            <span className="logo-text">CLMS</span>
+          </a>
+          <div className="nav-links">
+            <a href="#features" className="nav-link">Features</a>
+            <a href="#how" className="nav-link">How it works</a>
+            <a href="#roles" className="nav-link">Roles</a>
+            <Link to="/patients" className="nav-link">Patients</Link>
+            <Link to="/login" className="btn btn-red">Sign in</Link>
+          </div>
+        </div>
+      </nav>
+    );
+  }
+
+  // Render CLMS application navbar on internal routes
   const roles = [
     { id: 'lab_manager', label: 'Lab Manager', badgeClass: 'badge-manager', canDelete: true },
     { id: 'specimen_collector', label: 'Specimen Collector', badgeClass: 'badge-collector', canDelete: false },
@@ -23,7 +50,7 @@ export default function Navbar() {
     <header className="clms-navbar">
       <div className="navbar-container">
         <div className="navbar-left">
-          <Link to="/patients" className="brand-logo">
+          <Link to="/" className="brand-logo">
             <span className="logo-icon-wrap">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="logo-svg">
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -42,6 +69,9 @@ export default function Navbar() {
             >
               Patients
             </Link>
+            <Link to="/" className="nav-link">
+              Home
+            </Link>
           </nav>
         </div>
 
@@ -56,7 +86,7 @@ export default function Navbar() {
                   type="button"
                   id={`role-switch-${r.id}`}
                   className={`role-chip ${currentUser?.role === r.id ? 'active ' + r.badgeClass : ''}`}
-                  onClick={() => switchRole(r.id)}
+                  onClick={() => switchRole?.(r.id)}
                   title={`Switch active test persona to ${r.label}`}
                 >
                   {r.label}
