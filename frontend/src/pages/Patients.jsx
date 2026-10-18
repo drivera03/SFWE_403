@@ -14,7 +14,7 @@ export default function Patients() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState(null);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
-  const [selectedPatientId, setSelectedPatientId] = useState(null);
+  const [selectedPatient, setSelectedPatient] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
   const [registerError, setRegisterError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -23,8 +23,10 @@ export default function Patients() {
     first_name: "",
     last_name: "",
     date_of_birth: "",
+    sex: "",
     phone: "",
     email: "",
+    address: "",
   });
 
   useEffect(() => {
@@ -39,8 +41,8 @@ export default function Patients() {
   const userRole = (currentUser?.role || "").toLowerCase();
   const canCreate = !currentUser || CREATE_ROLES.includes(userRole);
 
-  const handleOpenRecord = (patientId) => {
-    setSelectedPatientId(patientId);
+  const handleOpenRecord = (patient) => {
+    setSelectedPatient(patient);
   };
 
   const handleCreateSubmit = async (e) => {
@@ -52,11 +54,21 @@ export default function Patients() {
         first_name: newPatient.first_name.trim(),
         last_name: newPatient.last_name.trim(),
         date_of_birth: newPatient.date_of_birth,
+        sex: newPatient.sex.trim() || null,
         phone: newPatient.phone.trim() || null,
         email: newPatient.email.trim() || null,
+        address: newPatient.address.trim() || null,
       });
       setIsRegisterOpen(false);
-      setNewPatient({ first_name: "", last_name: "", date_of_birth: "", phone: "", email: "" });
+      setNewPatient({
+        first_name: "",
+        last_name: "",
+        date_of_birth: "",
+        sex: "",
+        phone: "",
+        email: "",
+        address: "",
+      });
       setRefreshKey((k) => k + 1);
     } catch (err) {
       setRegisterError(err.message || "Failed to register patient");
@@ -167,15 +179,45 @@ export default function Patients() {
                   </div>
                 </div>
 
+                <div className="form-row">
+                  <div className="form-group">
+                    <label htmlFor="patient-dob">Date of Birth</label>
+                    <input
+                      id="patient-dob"
+                      type="date"
+                      required
+                      value={newPatient.date_of_birth}
+                      onChange={(e) =>
+                        setNewPatient({ ...newPatient, date_of_birth: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="patient-sex">Sex</label>
+                    <select
+                      id="patient-sex"
+                      value={newPatient.sex}
+                      onChange={(e) =>
+                        setNewPatient({ ...newPatient, sex: e.target.value })
+                      }
+                    >
+                      <option value="">Select Sex</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                </div>
+
                 <div className="form-group">
-                  <label htmlFor="patient-dob">Date of Birth</label>
+                  <label htmlFor="patient-address">Address</label>
                   <input
-                    id="patient-dob"
-                    type="date"
-                    required
-                    value={newPatient.date_of_birth}
+                    id="patient-address"
+                    type="text"
+                    placeholder="1234 Main St, City, State ZIP"
+                    value={newPatient.address}
                     onChange={(e) =>
-                      setNewPatient({ ...newPatient, date_of_birth: e.target.value })
+                      setNewPatient({ ...newPatient, address: e.target.value })
                     }
                   />
                 </div>
@@ -233,32 +275,34 @@ export default function Patients() {
       )}
 
       {/* Record Preview Drawer / Modal */}
-      {selectedPatientId && (
+      {selectedPatient && (
         <div className="modal-overlay" role="dialog" aria-modal="true">
           <div className="modal-card">
             <div className="modal-header">
-              <h2>Patient Record #{selectedPatientId}</h2>
+              <h2>Patient Record #{selectedPatient.id}</h2>
               <button
                 type="button"
                 className="modal-close-btn"
-                onClick={() => setSelectedPatientId(null)}
+                onClick={() => setSelectedPatient(null)}
               >
                 &times;
               </button>
             </div>
             <div className="modal-body">
-              <p style={{ color: "var(--mute)", fontSize: "0.9rem" }}>
-                Under requirement 6.1.4 (Minimum Necessary Access), detailed notes, insurance data, and lab results are restricted to full record access.
-              </p>
-              <div style={{ background: "#f8fafc", padding: "12px", borderRadius: "6px", fontSize: "0.85rem" }}>
-                <strong>Record ID:</strong> {selectedPatientId} <br />
-                <strong>Access Audit:</strong> View logged for audit requirement.
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", background: "#f8fafc", padding: "16px", borderRadius: "8px", fontSize: "0.9rem" }}>
+                <div><strong>Name:</strong> {selectedPatient.last_name}, {selectedPatient.first_name}</div>
+                <div><strong>Patient ID:</strong> {selectedPatient.patient_number}</div>
+                <div><strong>DOB:</strong> {selectedPatient.date_of_birth}</div>
+                <div><strong>Sex:</strong> {selectedPatient.sex || "Not specified"}</div>
+                <div style={{ gridColumn: "span 2" }}><strong>Address:</strong> {selectedPatient.address || "None on file"}</div>
+                {selectedPatient.phone && <div><strong>Phone:</strong> {selectedPatient.phone}</div>}
+                {selectedPatient.email && <div><strong>Email:</strong> {selectedPatient.email}</div>}
               </div>
               <div className="modal-actions">
                 <button
                   type="button"
                   className="btn-secondary"
-                  onClick={() => setSelectedPatientId(null)}
+                  onClick={() => setSelectedPatient(null)}
                 >
                   Close
                 </button>

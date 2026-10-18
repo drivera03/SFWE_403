@@ -138,6 +138,8 @@ export default function PatientList({
                 <th scope="col">Name</th>
                 <th scope="col">Patient ID</th>
                 <th scope="col">Date of birth</th>
+                <th scope="col">Sex</th>
+                <th scope="col">Address</th>
                 <th scope="col" style={{ textAlign: "right" }}>
                   <span>Actions</span>
                 </th>
@@ -154,10 +156,14 @@ export default function PatientList({
                       <span className="patient-id-badge">{p.patient_number}</span>
                     </td>
                     <td>{p.date_of_birth}</td>
+                    <td>{p.sex || "—"}</td>
+                    <td style={{ maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      {p.address || "—"}
+                    </td>
                     <td style={{ textAlign: "right" }}>
                       <button
                         type="button"
-                        onClick={() => onOpen?.(p.id)}
+                        onClick={() => onOpen?.(p)}
                         className="btn-open-record"
                         aria-label={`Open record for ${p.first_name} ${p.last_name}`}
                       >
