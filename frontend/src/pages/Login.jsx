@@ -24,7 +24,7 @@ export default function Login() {
       const destination = from?.pathname?.startsWith("/") &&
         !from.pathname.startsWith("//") && from.pathname !== "/login"
         ? { pathname: from.pathname, search: from.search, hash: from.hash }
-        : "/";
+        : "/patients";
       navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message);
