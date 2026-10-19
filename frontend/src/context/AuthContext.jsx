@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { loginUser, getMe } from '../services/api';
 
 const AuthContext = createContext(null);
@@ -14,10 +14,13 @@ export function AuthProvider({ children }) {
 
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('clms_user');
-    return saved ? JSON.parse(saved) : defaultUser;
+    return saved ? JSON.parse(saved) : null;
   });
 
   const [token, setToken] = useState(() => localStorage.getItem('clms_token') || '');
+  const [loading, setLoading] = useState(() => !!localStorage.getItem('clms_token'));
+
+  const isAuthenticated = !!currentUser;
 
   useEffect(() => {
     if (currentUser) {
@@ -34,6 +37,32 @@ export function AuthProvider({ children }) {
       localStorage.removeItem('clms_token');
     }
   }, [token]);
+
+  // On page load, use the saved token to restore the session
+  useEffect(() => {
+    const savedToken = localStorage.getItem('clms_token');
+    if (!savedToken) {
+      setLoading(false);
+      return;
+    }
+
+    const controller = new AbortController();
+    getMe(savedToken, controller.signal)
+      .then((me) => setCurrentUser(me))
+      .catch((err) => {
+        if (err.name === 'AbortError') return;
+        // expired or invalid token
+        setCurrentUser(null);
+        setToken('');
+        localStorage.removeItem('clms_user');
+        localStorage.removeItem('clms_token');
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+
+    return () => controller.abort();
+  }, []);
 
   // Check if current user role has permission to delete patients
   const canDeletePatient = () => {
@@ -54,25 +83,46 @@ export function AuthProvider({ children }) {
     setCurrentUser(target);
   };
 
-  const logout = () => {
+  const login = useCallback(async (email, password) => {
+    const data = await loginUser(email, password);
+    setToken(data.access_token);
+    localStorage.setItem('clms_token', data.access_token);
+    try {
+      const me = await getMe(data.access_token);
+      setCurrentUser(me);
+      return me;
+    } catch (err) {
+      setCurrentUser(null);
+      setToken('');
+      throw err;
+    }
+  }, []);
+
+  const logout = useCallback(() => {
     setCurrentUser(null);
     setToken('');
     localStorage.removeItem('clms_user');
     localStorage.removeItem('clms_token');
-  };
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      currentUser,
+      setCurrentUser,
+      token,
+      setToken,
+      loading,
+      isAuthenticated,
+      canDeletePatient,
+      switchRole,
+      login,
+      logout,
+    }),
+    [currentUser, token, loading, isAuthenticated, login, logout]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        currentUser,
-        setCurrentUser,
-        token,
-        setToken,
-        canDeletePatient,
-        switchRole,
-        logout,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

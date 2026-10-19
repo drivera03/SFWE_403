@@ -1,27 +1,27 @@
-from datetime import datetime, timezone
+from datetime import date, datetime
 from typing import List
-from sqlalchemy import String, DateTime
+
+from sqlalchemy import String, Date, DateTime, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.database import Base
-
-
-def now_utc() -> datetime:
-    return datetime.now(timezone.utc)
 
 
 class Patient(Base):
     __tablename__ = "patients"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False)
-    dob: Mapped[str] = mapped_column(String(50), nullable=False)
-    address: Mapped[str] = mapped_column(String(255), nullable=False)
-    phone: Mapped[str] = mapped_column(String(50), nullable=False)
-    email: Mapped[str] = mapped_column(String(255), nullable=False)
-    insurance_provider: Mapped[str] = mapped_column(String(100), nullable=False)
-    policy_number: Mapped[str] = mapped_column(String(100), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
-    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
+    first_name: Mapped[str] = mapped_column(String(100))
+    last_name: Mapped[str] = mapped_column(String(100), index=True)
+    date_of_birth: Mapped[date] = mapped_column(Date)
+    sex: Mapped[str | None] = mapped_column(String(20))
+    phone: Mapped[str | None] = mapped_column(String(20))
+    email: Mapped[str | None] = mapped_column(String(255))
+    address: Mapped[str | None] = mapped_column(String(255))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
     # Relationships
     tests: Mapped[List["LabTest"]] = relationship("LabTest", back_populates="patient")

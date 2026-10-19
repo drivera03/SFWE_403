@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies import require_role
+from app.dependencies import get_current_user, require_role
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.lab_test import LabTest
@@ -13,13 +13,26 @@ from app.schemas.patient import PatientCreate, PatientUpdate, PatientResponse, L
 from app.activity_logger import log_activity
 
 logger = logging.getLogger("uvicorn.error")
-router = APIRouter(prefix="/patients", tags=["patients"])
+
+# Every patient route requires a logged-in user.
+router = APIRouter(
+    prefix="/patients",
+    tags=["patients"],
+    dependencies=[Depends(get_current_user)],
+)
+
+
+def get_patient_or_404(patient_id: int, db: Session) -> Patient:
+    patient = db.get(Patient, patient_id)
+    if patient is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Patient not found")
+    return patient
 
 
 @router.get("", response_model=List[PatientResponse])
 def list_patients(db: Session = Depends(get_db)):
     """List all patients."""
-    return db.query(Patient).all()
+    return db.query(Patient).order_by(Patient.id).all()
 
 
 @router.post("", response_model=PatientResponse, status_code=status.HTTP_201_CREATED)
@@ -29,15 +42,7 @@ def create_patient(
     db: Session = Depends(get_db),
 ):
     """Create a new patient record."""
-    patient = Patient(
-        name=body.name,
-        dob=body.dob,
-        address=body.address,
-        phone=body.phone,
-        email=body.email,
-        insurance_provider=body.insurance_provider,
-        policy_number=body.policy_number,
-    )
+    patient = Patient(**body.model_dump())
     db.add(patient)
     db.commit()
     db.refresh(patient)
@@ -48,7 +53,7 @@ def create_patient(
         user_id=current_user.id,
         resource_type="patient",
         resource_id=str(patient.id),
-        details={"name": patient.name, "dob": patient.dob},
+        details={"first_name": patient.first_name, "last_name": patient.last_name},
     )
     return patient
 
@@ -56,13 +61,7 @@ def create_patient(
 @router.get("/{patient_id}", response_model=PatientResponse)
 def get_patient(patient_id: int, db: Session = Depends(get_db)):
     """Get full details for a single patient by ID."""
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Patient with ID {patient_id} not found",
-        )
-    return patient
+    return get_patient_or_404(patient_id, db)
 
 
 @router.put("/{patient_id}", response_model=PatientResponse)
@@ -73,14 +72,9 @@ def update_patient(
     db: Session = Depends(get_db),
 ):
     """Update patient details."""
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Patient with ID {patient_id} not found",
-        )
+    patient = get_patient_or_404(patient_id, db)
 
-    for field, value in body.model_dump(exclude_unset=True).items():
+    for field, value in body.model_dump().items():
         setattr(patient, field, value)
 
     db.commit()
@@ -92,7 +86,7 @@ def update_patient(
         user_id=current_user.id,
         resource_type="patient",
         resource_id=str(patient.id),
-        details={"updated_fields": list(body.model_dump(exclude_unset=True).keys())},
+        details={"updated_fields": list(body.model_dump().keys())},
     )
     return patient
 
@@ -109,12 +103,7 @@ def delete_patient(
     If the patient has linked lab tests, deletion is blocked with a 400 Bad Request.
     The deletion action is written to the activity log.
     """
-    patient = db.query(Patient).filter(Patient.id == patient_id).first()
-    if not patient:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Patient with ID {patient_id} not found",
-        )
+    patient = get_patient_or_404(patient_id, db)
 
     # Check for linked tests - block deletion if tests exist
     linked_tests_count = db.query(LabTest).filter(LabTest.patient_id == patient_id).count()
@@ -124,7 +113,7 @@ def delete_patient(
             detail=f"Cannot delete patient with ID {patient_id}: {linked_tests_count} linked lab test(s) exist. Resolve or reassign tests before deleting.",
         )
 
-    patient_name = patient.name
+    patient_name = f"{patient.first_name} {patient.last_name}"
 
     db.delete(patient)
     db.commit()

@@ -35,7 +35,7 @@
   --info-bg: rgba(6, 182, 212, 0.12);
 }
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;

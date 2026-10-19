@@ -10,7 +10,6 @@ VALID_ROLES = {
     "physician",
 }
 
-
 class LoginRequest(BaseModel):
     email: str
     password: str
@@ -45,7 +44,6 @@ class RegisterRequest(BaseModel):
             raise ValueError(f"Invalid role '{v}'. Allowed roles are: {', '.join(sorted(VALID_ROLES))}")
         return cleaned
 
-
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -68,3 +66,7 @@ class UnlockResponse(BaseModel):
     user_id: int
     is_locked: bool
     failed_attempts: int
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

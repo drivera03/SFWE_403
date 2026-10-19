@@ -3,7 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 export default function Navbar() {
-  const { currentUser, switchRole } = useAuth();
+  const { currentUser, isAuthenticated, switchRole, logout } = useAuth();
   const location = useLocation();
 
   const roles = [
@@ -46,37 +46,46 @@ export default function Navbar() {
         </div>
 
         <div className="navbar-right">
-          {/* Active Role Selector Tool for verifying role-based behavior */}
-          <div className="role-switcher-container">
-            <span className="role-switcher-label">Active Role:</span>
-            <div className="role-buttons">
-              {roles.map((r) => (
-                <button
-                  key={r.id}
-                  type="button"
-                  id={`role-switch-${r.id}`}
-                  className={`role-chip ${currentUser?.role === r.id ? 'active ' + r.badgeClass : ''}`}
-                  onClick={() => switchRole(r.id)}
-                  title={`Switch active test persona to ${r.label}`}
-                >
-                  {r.label}
-                  {r.canDelete && <span className="delete-perm-star" title="Has delete permissions">★</span>}
-                </button>
-              ))}
-            </div>
-          </div>
+          {isAuthenticated ? (
+            <>
+              {/* Active Role Selector Tool for verifying role-based behavior */}
+              <div className="role-switcher-container">
+                <span className="role-switcher-label">Active Role:</span>
+                <div className="role-buttons">
+                  {roles.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      id={`role-switch-${r.id}`}
+                      className={`role-chip ${currentUser?.role === r.id ? 'active ' + r.badgeClass : ''}`}
+                      onClick={() => switchRole(r.id)}
+                      title={`Switch active test persona to ${r.label}`}
+                    >
+                      {r.label}
+                      {r.canDelete && <span className="delete-perm-star" title="Has delete permissions">★</span>}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-          <div className="user-profile-badge">
-            <div className="avatar-circle">
-              {currentUser?.username ? currentUser.username.charAt(0).toUpperCase() : 'U'}
-            </div>
-            <div className="user-details">
-              <span className="user-name">{currentUser?.username || 'User'}</span>
-              <span className={`user-role-tag ${currentRoleObj.badgeClass}`}>
-                {currentRoleObj.label}
-              </span>
-            </div>
-          </div>
+              <div className="user-profile-badge">
+                <div className="avatar-circle">
+                  {currentUser?.username ? currentUser.username.charAt(0).toUpperCase() : currentUser?.email?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <div className="user-details">
+                  <span className="user-name">{currentUser?.username || currentUser?.email || 'User'}</span>
+                  <span className={`user-role-tag ${currentRoleObj.badgeClass}`}>
+                    {currentRoleObj.label}
+                  </span>
+                </div>
+              </div>
+
+              <Link to="/change-password" className="nav-link nav-account-link">Change password</Link>
+              <button type="button" className="btn btn-sm btn-secondary" onClick={logout}>Sign out</button>
+            </>
+          ) : (
+            <Link to="/login" className="btn btn-sm btn-primary">Sign in</Link>
+          )}
         </div>
       </div>
     </header>

@@ -1,5 +1,6 @@
-from datetime import datetime
-from pydantic import BaseModel, ConfigDict
+from datetime import date, datetime
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class LabTestResponse(BaseModel):
@@ -11,31 +12,21 @@ class LabTestResponse(BaseModel):
     created_at: datetime
 
 
-class PatientBase(BaseModel):
-    name: str
-    dob: str
-    address: str
-    phone: str
-    email: str
-    insurance_provider: str
-    policy_number: str
+class PatientCreate(BaseModel):
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
+    date_of_birth: date
+    sex: str | None = Field(default=None, max_length=20)
+    phone: str | None = Field(default=None, max_length=20)
+    email: str | None = Field(default=None, max_length=255)
+    address: str | None = Field(default=None, max_length=255)
 
 
-class PatientCreate(PatientBase):
-    pass
+class PatientUpdate(PatientCreate):
+    """PUT replaces the whole record, so it takes the same fields as create."""
 
 
-class PatientUpdate(BaseModel):
-    name: str | None = None
-    dob: str | None = None
-    address: str | None = None
-    phone: str | None = None
-    email: str | None = None
-    insurance_provider: str | None = None
-    policy_number: str | None = None
-
-
-class PatientResponse(PatientBase):
+class PatientResponse(PatientCreate):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
