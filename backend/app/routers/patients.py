@@ -9,7 +9,7 @@ from app.dependencies import get_current_user, require_role
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.lab_test import LabTest
-from app.schemas.patient import PatientCreate, PatientUpdate, PatientResponse, LabTestResponse
+from app.schemas.patient import PatientCreate, PatientUpdate, PatientResponse
 from app.activity_logger import log_activity
 
 logger = logging.getLogger("uvicorn.error")
@@ -25,7 +25,10 @@ router = APIRouter(
 def get_patient_or_404(patient_id: int, db: Session) -> Patient:
     patient = db.get(Patient, patient_id)
     if patient is None:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, "Patient not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Patient with ID {patient_id} not found",
+        )
     return patient
 
 
@@ -38,23 +41,28 @@ def list_patients(db: Session = Depends(get_db)):
 @router.post("", response_model=PatientResponse, status_code=status.HTTP_201_CREATED)
 def create_patient(
     body: PatientCreate,
-    current_user: User = Depends(require_role("lab_manager", "specimen_collector")),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new patient record."""
-    patient = Patient(**body.model_dump())
+    patient = Patient(**body.model_dump(exclude_unset=True))
     db.add(patient)
     db.commit()
     db.refresh(patient)
 
-    log_activity(
-        db=db,
-        action="patient_created",
-        user_id=current_user.id,
-        resource_type="patient",
-        resource_id=str(patient.id),
-        details={"first_name": patient.first_name, "last_name": patient.last_name},
-    )
+    user_id = getattr(current_user, "id", None)
+    if user_id:
+        log_activity(
+            db=db,
+            action="patient_created",
+            user_id=user_id,
+            resource_type="patient",
+            resource_id=str(patient.id),
+            details={
+                "name": patient.name or f"{patient.first_name} {patient.last_name}",
+                "dob": patient.dob or str(patient.date_of_birth),
+            },
+        )
     return patient
 
 
@@ -68,26 +76,34 @@ def get_patient(patient_id: int, db: Session = Depends(get_db)):
 def update_patient(
     patient_id: int,
     body: PatientUpdate,
-    current_user: User = Depends(require_role("lab_manager", "specimen_collector")),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update patient details."""
     patient = get_patient_or_404(patient_id, db)
 
-    for field, value in body.model_dump().items():
+    for field, value in body.model_dump(exclude_unset=True).items():
         setattr(patient, field, value)
+
+    # Sync name <-> first_name/last_name and dob <-> date_of_birth
+    if (patient.first_name or patient.last_name) and not body.name:
+        patient.name = f"{patient.first_name or ''} {patient.last_name or ''}".strip()
+    if patient.date_of_birth and not body.dob:
+        patient.dob = str(patient.date_of_birth)
 
     db.commit()
     db.refresh(patient)
 
-    log_activity(
-        db=db,
-        action="patient_updated",
-        user_id=current_user.id,
-        resource_type="patient",
-        resource_id=str(patient.id),
-        details={"updated_fields": list(body.model_dump().keys())},
-    )
+    user_id = getattr(current_user, "id", None)
+    if user_id:
+        log_activity(
+            db=db,
+            action="patient_updated",
+            user_id=user_id,
+            resource_type="patient",
+            resource_id=str(patient.id),
+            details={"updated_fields": list(body.model_dump(exclude_unset=True).keys())},
+        )
     return patient
 
 
@@ -113,19 +129,21 @@ def delete_patient(
             detail=f"Cannot delete patient with ID {patient_id}: {linked_tests_count} linked lab test(s) exist. Resolve or reassign tests before deleting.",
         )
 
-    patient_name = f"{patient.first_name} {patient.last_name}"
+    patient_name = patient.name or f"{patient.first_name or ''} {patient.last_name or ''}".strip()
 
     db.delete(patient)
     db.commit()
 
     # Record deletion to activity log
-    log_activity(
-        db=db,
-        action="delete_patient",
-        user_id=current_user.id,
-        resource_type="patient",
-        resource_id=str(patient_id),
-        details={"patient_id": patient_id, "patient_name": patient_name},
-    )
+    user_id = getattr(current_user, "id", None)
+    if user_id:
+        log_activity(
+            db=db,
+            action="delete_patient",
+            user_id=user_id,
+            resource_type="patient",
+            resource_id=str(patient_id),
+            details={"patient_id": patient_id, "patient_name": patient_name},
+        )
 
     return None

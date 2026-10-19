@@ -10,23 +10,25 @@ VALID_ROLES = {
     "physician",
 }
 
+
 class LoginRequest(BaseModel):
     email: str
     password: str
 
 
 class RegisterRequest(BaseModel):
-    username: str
-    password: str
-    role: str
+    username: str | None = None
     email: str | None = None
+    password: str
+    role: str = "technician"
 
     @field_validator("username")
     @classmethod
-    def validate_username(cls, v: str) -> str:
-        v = v.strip()
-        if not v:
-            raise ValueError("Username cannot be empty")
+    def validate_username(cls, v: str | None) -> str | None:
+        if v is not None:
+            v = v.strip()
+            if not v:
+                raise ValueError("Username cannot be empty")
         return v
 
     @field_validator("password")
@@ -43,6 +45,7 @@ class RegisterRequest(BaseModel):
         if cleaned not in VALID_ROLES:
             raise ValueError(f"Invalid role '{v}'. Allowed roles are: {', '.join(sorted(VALID_ROLES))}")
         return cleaned
+
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -66,6 +69,7 @@ class UnlockResponse(BaseModel):
     user_id: int
     is_locked: bool
     failed_attempts: int
+
 
 class ChangePasswordRequest(BaseModel):
     current_password: str
