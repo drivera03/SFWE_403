@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
-import { login } from "../services/auth";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -16,10 +18,13 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      const data = await login(form.email, form.password);
-      // TODO: move this into your AuthContext / useAuth() once it exists
-      localStorage.setItem("token", data.access_token);
-      navigate("/patients");
+      await login(form.email, form.password);
+      const from = location.state?.from;
+      const destination = from?.pathname?.startsWith("/") &&
+        !from.pathname.startsWith("//") && from.pathname !== "/login"
+        ? { pathname: from.pathname, search: from.search, hash: from.hash }
+        : "/patients";
+      navigate(destination, { replace: true });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -32,12 +37,12 @@ export default function Login() {
       title="Sign in"
       subtitle="Use the account your Lab Manager created for you."
       footer={
-  <>
-    Need an account? <Link to="/signup">Create one</Link>
-    <br />
-    <Link to="/change-password">Change password</Link>
-  </>
-}
+        <>
+          Need an account? <Link to="/signup">Create one</Link>
+          <br />
+          <Link to="/change-password">Change password</Link>
+        </>
+      }
     >
       <form className="auth-form" onSubmit={handleSubmit}>
         {error && <div className="auth-error" role="alert">{error}</div>}

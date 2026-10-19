@@ -1,5 +1,17 @@
 # React + Vite
 
+## Protected routes
+
+`src/components/ProtectedRoute.jsx` verifies the stored `token` with `GET /auth/me`
+before rendering protected content. In `App.jsx`, nest private routes inside
+`<Route element={<ProtectedRoute />}>`; `/change-password` uses this wrapper.
+It also supports `<ProtectedRoute><PrivatePage /></ProtectedRoute>`.
+
+Missing or rejected tokens redirect to `/login`. Successful login returns to the
+requested path, including its query string and hash. Session checks show a loading
+message, and network/server failures offer a retry without deleting the token.
+The backend continues to enforce authentication and authorization on API requests.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

@@ -1,4 +1,6 @@
 import { AlertIcon } from "./Icons";
+import { Link } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
 
 const specimens = [
   { id: "A-20416", test: "Lipid panel", status: "Approved", tone: "green" },
@@ -8,6 +10,7 @@ const specimens = [
 ];
 
 export default function Hero() {
+  const { isAuthenticated } = useAuth();
   return (
     <section className="hero" id="top">
       <div className="container hero-grid">
@@ -18,8 +21,12 @@ export default function Hero() {
             Track every specimen from intake to approved result. Manage patients,
             reagents, billing, and reports in one place.
           </p>
-          <div className="hero-cta">
-            <a href="/login" className="btn btn-blue btn-lg">Sign in to CLMS</a>
+         <div className="hero-cta">
+            {isAuthenticated ? (
+              <Link to="/patients" className="btn btn-blue btn-lg">Go to Patients</Link>
+            ) : (
+              <Link to="/login" className="btn btn-blue btn-lg">Sign in to CLMS</Link>
+            )}
             <a href="#how" className="btn btn-light btn-lg">See how it works</a>
           </div>
         </div>
