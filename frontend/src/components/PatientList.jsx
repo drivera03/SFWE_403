@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getPatients } from "../services/patients";
+import { deletePatient, getPatients } from "../services/patients";
 import "../styles/patients.css";
 
 // Fallback mock patients for frontend preview before backend wiring
@@ -17,6 +17,7 @@ const MOCK_PATIENTS = [
  */
 export default function PatientList({
   canCreate = false,
+  canDelete = false,
   onOpen,
   onCreate,
   useMockFallback = true,
@@ -24,6 +25,28 @@ export default function PatientList({
   const [query, setQuery] = useState("");
   const [patients, setPatients] = useState([]);
   const [status, setStatus] = useState("loading"); // loading | ready | error | forbidden
+  const [deletingId, setDeletingId] = useState(null);
+  const [deleteError, setDeleteError] = useState("");
+  const [deleteMessage, setDeleteMessage] = useState("");
+  const [deleteForbidden, setDeleteForbidden] = useState(false);
+
+  async function handleDelete(patient) {
+    if (!canDelete || deleteForbidden || deletingId !== null) return;
+    if (!window.confirm(`Permanently delete the patient record for ${patient.first_name} ${patient.last_name}?`)) return;
+    setDeletingId(patient.id);
+    setDeleteError("");
+    setDeleteMessage("");
+    try {
+      await deletePatient(patient.id);
+      setPatients((records) => records.filter((record) => record.id !== patient.id));
+      setDeleteMessage("Patient record deleted.");
+    } catch (err) {
+      if (err.status === 403) setDeleteForbidden(true);
+      setDeleteError(err.status === 403 ? "Your role does not allow deleting patients." : "Unable to delete patient. Please try again.");
+    } finally {
+      setDeletingId(null);
+    }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -98,6 +121,9 @@ export default function PatientList({
         )}
       </header>
 
+      {deleteError && <p className="state-error" role="alert">{deleteError}</p>}
+      {deleteMessage && <p role="status">{deleteMessage}</p>}
+
       {/* Search Input with 250ms debounce */}
       <div className="patient-search-bar">
         <label htmlFor="patient-search-input" className="sr-only">
@@ -169,6 +195,12 @@ export default function PatientList({
                       >
                         Open record &rarr;
                       </button>
+                      {canDelete && !deleteForbidden && (
+                        <button type="button" className="patient-delete" disabled={deletingId !== null}
+                          onClick={() => handleDelete(p)} aria-label={`Delete patient ${p.first_name} ${p.last_name}`}>
+                          {deletingId === p.id ? "Deleting..." : "Delete"}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

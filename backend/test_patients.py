@@ -3,6 +3,7 @@ os.environ["DATABASE_URL"] = "sqlite://"
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-testing-32charsmin")
 
 import unittest
+from types import SimpleNamespace
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -71,6 +72,34 @@ class TestPatients(unittest.TestCase):
     def test_requires_login(self):
         app.dependency_overrides.pop(get_current_user)
         self.assertEqual(self.client.get("/patients").status_code, 401)
+
+    def test_manager_can_delete_patient(self):
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(role="lab_manager")
+        pid = self.client.post("/patients", json=SAMPLE).json()["id"]
+        response = self.client.delete(f"/patients/{pid}")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+        self.assertEqual(self.client.get(f"/patients/{pid}").status_code, 404)
+        self.assertEqual(self.client.get("/patients").json(), [])
+
+    def test_other_roles_cannot_delete_patient(self):
+        pid = self.client.post("/patients", json=SAMPLE).json()["id"]
+        for role in ("specimen_collector", "lab_technician", "pathologist", "billing", "physician", "", "admin"):
+            with self.subTest(role=role):
+                app.dependency_overrides[get_current_user] = lambda role=role: SimpleNamespace(role=role)
+                self.assertEqual(self.client.delete(f"/patients/{pid}").status_code, 403)
+                self.assertEqual(self.client.get(f"/patients/{pid}").status_code, 200)
+
+    def test_delete_missing_patient(self):
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(role="lab_manager")
+        self.assertEqual(self.client.delete("/patients/999").status_code, 404)
+
+    def test_delete_requires_login(self):
+        pid = self.client.post("/patients", json=SAMPLE).json()["id"]
+        app.dependency_overrides.pop(get_current_user)
+        self.assertEqual(self.client.delete(f"/patients/{pid}").status_code, 401)
+        app.dependency_overrides[get_current_user] = lambda: object()
+        self.assertEqual(self.client.get(f"/patients/{pid}").status_code, 200)
 
 
 if __name__ == "__main__":

@@ -498,3 +498,15 @@
 .btn-secondary:hover {
   background: #e2e8f0;
 }
+.patient-delete {
+  margin-left: 12px;
+  padding: 8px 14px;
+  border: 0;
+  border-radius: 6px;
+  background: #ab0520;
+  color: white;
+  cursor: pointer;
+  font: inherit;
+}
+.patient-delete:hover:not(:disabled) { background: #8a0419; }
+.patient-delete:disabled { opacity: 0.6; cursor: wait; }

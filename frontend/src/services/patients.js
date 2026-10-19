@@ -38,7 +38,7 @@ async function apiRequest(path, { method = "GET", body = null, signal = null } =
     throw err;
   }
 
-  return res.json();
+  return res.status === 204 ? null : res.json();
 }
 
 /**
@@ -63,4 +63,8 @@ export async function createPatient(patientData) {
     method: "POST",
     body: patientData,
   });
+}
+
+export function deletePatient(id) {
+  return apiRequest(`/patients/${id}`, { method: "DELETE" });
 }

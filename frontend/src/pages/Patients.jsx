@@ -1,9 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import PatientList from "../components/PatientList";
 import { Link, useNavigate } from "react-router-dom";
 import { BeakerIcon } from "../components/Icons";
 import { createPatient } from "../services/patients";
-import { getCurrentUser } from "../services/auth";
+import { useAuth } from "../hooks/useAuth";
 import "../styles/landing.css";
 import "../styles/patients.css";
 
@@ -12,7 +12,7 @@ const CREATE_ROLES = ["lab_manager", "manager", "specimen_collector", "lab_techn
 
 export default function Patients() {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState(null);
+  const { user: currentUser, logout } = useAuth();
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -29,17 +29,9 @@ export default function Patients() {
     address: "",
   });
 
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      getCurrentUser(token)
-        .then((user) => setCurrentUser(user))
-        .catch(() => {});
-    }
-  }, []);
-
   const userRole = (currentUser?.role || "").toLowerCase();
-  const canCreate = !currentUser || CREATE_ROLES.includes(userRole);
+  const canCreate = CREATE_ROLES.includes(userRole);
+  const canDelete = userRole === "lab_manager";
 
   const handleOpenRecord = (patient) => {
     setSelectedPatient(patient);
@@ -112,7 +104,7 @@ export default function Patients() {
               className="btn btn-red"
               style={{ border: "none", cursor: "pointer", fontSize: "0.875rem" }}
               onClick={() => {
-                localStorage.removeItem("token");
+                logout();
                 navigate("/login");
               }}
             >
@@ -127,6 +119,7 @@ export default function Patients() {
         <PatientList
           key={refreshKey}
           canCreate={canCreate}
+          canDelete={canDelete}
           onOpen={handleOpenRecord}
           onCreate={() => setIsRegisterOpen(true)}
           useMockFallback={false}

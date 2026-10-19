@@ -5,6 +5,7 @@ import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ChangePassword from "./pages/ChangePassword";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Patients from "./pages/Patients";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route element={<ProtectedRoute />}>
+            <Route path="/patients" element={<Patients />} />
             <Route path="/change-password" element={<ChangePassword />} />
           </Route>
         </Routes>

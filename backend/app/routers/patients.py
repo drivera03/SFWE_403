@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_role
 from app.models.patient import Patient
 from app.schemas.patient import PatientCreate, PatientUpdate, PatientResponse
 
@@ -48,3 +48,14 @@ def update_patient(patient_id: int, body: PatientUpdate, db: Session = Depends(g
     db.commit()
     db.refresh(patient)
     return patient
+
+
+@router.delete(
+    "/{patient_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_role("lab_manager"))],
+)
+def delete_patient(patient_id: int, db: Session = Depends(get_db)):
+    patient = get_patient_or_404(patient_id, db)
+    db.delete(patient)
+    db.commit()
