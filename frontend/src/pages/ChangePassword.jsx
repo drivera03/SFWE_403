@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
 import { changePassword } from "../services/auth";
+import { useAuth } from "../hooks/useAuth";
 
 const MIN_LENGTH = 8; // TODO: match the rule used by RegisterRequest.password
 
 export default function ChangePassword() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { logout } = useAuth();
   const [form, setForm] = useState({ current: "", next: "", confirm: "" });
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -40,9 +40,7 @@ export default function ChangePassword() {
       setSuccess(true);
     } catch (err) {
       if (err.status === 401) {
-        // Token missing or expired
-        localStorage.removeItem("token");
-        navigate("/login", { replace: true, state: { from: location } });
+        logout(); // ProtectedRoute sends the user to /login
         return;
       }
       if (err.status === 423 && err.retryAfter) {
