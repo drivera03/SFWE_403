@@ -1,0 +1,14 @@
+.patients-page { max-width: 1000px; margin: 0 auto; padding: 32px 24px; color: #0c234b; }
+.patients-header { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-bottom: 24px; }
+.patients-page a { color: #0c234b; }
+.patients-page h1 { margin: 12px 0; }
+.patients-page [role="alert"] { color: #ab0520; }
+.patients-page [role="status"] { color: #166534; }
+.patients-table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 12px; background: white; }
+.patients-page table { width: 100%; border-collapse: collapse; text-align: left; }
+.patients-page caption { text-align: left; padding: 16px; font-weight: 600; }
+.patients-page th, .patients-page td { padding: 16px; border-top: 1px solid #e2e8f0; }
+.patients-page th { background: #f8fafc; }
+.patient-delete { background: #ab0520; color: white; border: 0; border-radius: 6px; padding: 8px 14px; cursor: pointer; font: inherit; }
+.patient-delete:disabled { opacity: 0.6; cursor: wait; }
+.patient-delete:hover:not(:disabled) { background: #8a0419; }

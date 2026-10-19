@@ -19,7 +19,7 @@ export default function Login() {
       const data = await login(form.email, form.password);
       // TODO: move this into your AuthContext / useAuth() once it exists
       localStorage.setItem("token", data.access_token);
-      navigate("/"); // TODO: send users to their dashboard
+      navigate("/patients");
     } catch (err) {
       setError(err.message);
     } finally {

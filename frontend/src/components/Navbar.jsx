@@ -14,6 +14,7 @@ export default function Navbar() {
           <a href="#features" className="nav-link">Features</a>
           <a href="#how" className="nav-link">How it works</a>
           <a href="#roles" className="nav-link">Roles</a>
+          <a href="/patients" className="nav-link">Patients</a>
           <a href="/login" className="btn btn-red">Sign in</a>
         </div>
       </div>
