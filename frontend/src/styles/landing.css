@@ -32,6 +32,11 @@ a{color:inherit}
 .logo-text{font-size:24px;font-weight:700;color:#fff;letter-spacing:-.01em}
 .nav-links{display:flex;align-items:center;gap:32px}
 .nav-link{color:rgba(255,255,255,.8);text-decoration:none;font-weight:500}.nav-link:hover{color:#fff}
+.nav-user{display:flex;align-items:center;gap:10px;color:#fff;font-size:14px}
+.nav-user-email{font-weight:600;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-user-role{padding:2px 10px;border-radius:999px;background:rgba(255,255,255,.15);font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase}
+.btn-signout{background:transparent;color:#fff;border:1px solid rgba(255,255,255,.4);cursor:pointer;font-family:inherit;font-size:inherit}
+.btn-signout:hover{background:rgba(255,255,255,.15)}
 
 /* Hero */
 .hero{padding:176px 0 112px;overflow:hidden;background:radial-gradient(circle at 85% 0%,var(--blue-50),transparent 55%)}
@@ -112,6 +117,8 @@ a{color:inherit}
   .hero-grid{grid-template-columns:1fr}
   .row,.row-reverse{flex-direction:column;gap:40px}
   .nav-link{display:none}
+  .nav-user-role{display:none}
+  .nav-links{gap:16px}
 }
 @media (max-width:600px){
   .feature-grid{grid-template-columns:1fr}
