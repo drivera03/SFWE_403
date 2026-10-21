@@ -1,11 +1,16 @@
+import React from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
 import Home from "./pages/Home";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
 import ChangePassword from "./pages/ChangePassword";
-import ProtectedRoute from "./components/ProtectedRoute";
 import Patients from "./pages/Patients";
+import PatientList from "./pages/PatientList";
+import PatientDetail from "./pages/PatientDetail";
+import PatientEdit from "./pages/PatientEdit";
+import NotFound from "./pages/NotFound";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Navbar from "./components/Navbar";
 
 export default function App() {
   return (
