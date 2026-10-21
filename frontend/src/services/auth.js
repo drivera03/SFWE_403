@@ -36,7 +36,7 @@ async function post(path, body, { auth = false } = {}) {
 export const login = (email, password) => post("/auth/login", { email, password });
 
 export const register = (email, password, role) =>
-  post("/auth/register", { email, password, role });
+  post("/auth/register", { email, password, role }, { auth: true });
 
 export const changePassword = (currentPassword, newPassword) =>
   post("/auth/change-password", { current_password: currentPassword, new_password: newPassword }, { auth: true });

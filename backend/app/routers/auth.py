@@ -9,7 +9,7 @@ from app.database import get_db
 from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, UserResponse, ChangePasswordRequest
 from app.security import verify_password, create_access_token, password_hash, DUMMY_HASH
 from app.notifications import emit_lockout_notification
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_role
 from app.models.user import User
 
 logger = logging.getLogger("uvicorn.error")
@@ -66,12 +66,23 @@ def locked_error(user: User) -> HTTPException:
     )
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+def register(
+    body: RegisterRequest,
+    db: Session = Depends(get_db),
+    manager: User = Depends(require_role("lab_manager")),
+):
+    """Create a user account. Lab managers only."""
     email = body.email.strip().lower()
     if get_user_by_email(db, email):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "An account with this email already exists.")
 
-    user = User(email=email, role=body.role, password_hash=password_hash.hash(body.password))
+    user = User(
+        email=email,
+        role=body.role,
+        password_hash=password_hash.hash(body.password),
+        failed_login_attempts=0,
+        locked_until=None,
+    )
     db.add(user)
     try:
         db.commit()
@@ -81,7 +92,8 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "An account with this email already exists.")
     db.refresh(user)
 
-    logger.info("Registered new user email=%s id=%s role=%s", user.email, user.id, user.role)
+    # Never log the password or its hash.
+    logger.info("User registered id=%s role=%s created_by=%s", user.id, user.role, manager.id)
     return UserResponse(id=user.id, email=user.email, role=user.role)
 
 @router.post("/login", response_model=TokenResponse)
