@@ -96,6 +96,26 @@ def register(
     logger.info("User registered id=%s role=%s created_by=%s", user.id, user.role, manager.id)
     return UserResponse(id=user.id, email=user.email, role=user.role)
 
+@router.post("/unlock/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def unlock_account(
+    user_id: int,
+    db: Session = Depends(get_db),
+    manager: User = Depends(require_role("lab_manager")),
+):
+    """Unlock an account and reset its failed-login counter. Lab managers only."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    was_locked = is_locked(user)
+    previous_attempts = user.failed_login_attempts
+    reset_failed_logins(db, user)  # clears failed_login_attempts and locked_until, then commits
+
+    logger.info(
+        "Account unlocked user_id=%s by=%s was_locked=%s previous_failed_attempts=%s",
+        user.id, manager.id, was_locked, previous_attempts,
+    )
+
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):
     user = get_user_by_email(db, body.email)
