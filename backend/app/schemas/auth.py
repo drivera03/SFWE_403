@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, field_validator
@@ -30,6 +31,12 @@ class RegisterRequest(BaseModel):
         if len(v.encode("utf-8")) > 72:
             raise ValueError("Password must be at most 72 bytes.")
         return v
+
+class LockedUserResponse(BaseModel):
+    id: int
+    email: str
+    role: str
+    locked_until: datetime
 
 class TokenResponse(BaseModel):
     access_token: str

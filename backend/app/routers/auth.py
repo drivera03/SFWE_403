@@ -6,7 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, UserResponse, ChangePasswordRequest
+from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, UserResponse, ChangePasswordRequest, LockedUserResponse
 from app.security import verify_password, create_access_token, password_hash, DUMMY_HASH
 from app.notifications import emit_lockout_notification
 from app.dependencies import get_current_user, require_role
@@ -95,6 +95,19 @@ def register(
     # Never log the password or its hash.
     logger.info("User registered id=%s role=%s created_by=%s", user.id, user.role, manager.id)
     return UserResponse(id=user.id, email=user.email, role=user.role)
+
+@router.get("/locked-users", response_model=list[LockedUserResponse])
+def list_locked_users(
+    db: Session = Depends(get_db),
+    manager: User = Depends(require_role("lab_manager")),
+):
+    """List accounts that are currently locked. Lab managers only."""
+    candidates = db.query(User).filter(User.locked_until.is_not(None)).order_by(User.email).all()
+    return [
+        LockedUserResponse(id=u.id, email=u.email, role=u.role, locked_until=as_utc(u.locked_until))
+        for u in candidates
+        if is_locked(u)
+    ]
 
 @router.post("/unlock/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def unlock_account(
