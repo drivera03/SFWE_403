@@ -3,10 +3,8 @@ from typing import Any
 import jwt
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
-from pwdlib.hashers.bcrypt import BcryptHasher
-from pwdlib.hashers.argon2 import Argon2Hasher
 
-password_hash = PasswordHash((BcryptHasher(), Argon2Hasher()))
+password_hash = PasswordHash.recommended()  # argon2
 DUMMY_HASH = password_hash.hash("not-a-real-password")
 
 SECRET_KEY = os.environ["SECRET_KEY"]  # fail loudly if it's missing
