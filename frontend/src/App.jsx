@@ -6,6 +6,7 @@ import Signup from "./pages/Signup";
 import ChangePassword from "./pages/ChangePassword";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Patients from "./pages/Patients";
+import UnlockUser from "./pages/UnlockUser";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
           <Route element={<ProtectedRoute />}>
             <Route path="/patients" element={<Patients />} />
             <Route path="/change-password" element={<ChangePassword />} />
+            <Route path="/unlock-accounts" element={<UnlockUser />} />
           </Route>
         </Routes>
       </BrowserRouter>

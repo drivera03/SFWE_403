@@ -23,14 +23,16 @@ export default function Navbar() {
           {isAuthenticated ? (
             <>
               <span className="nav-user">
+                <Link to="/unlock-accounts" className="nav-link nav-unlock-link">Unlock Accounts</Link>
                 <span className="nav-user-email">{user.email}</span>
                 <span className="nav-user-role">{user.role}</span>
               </span>
               <Link to="/change-password" className="nav-link nav-account-link">Change password</Link>
               <button type="button" className="btn btn-signout" onClick={logout}>Sign out</button>
+              <Link to="/signup" className="btn btn-red">Create Account</Link>
             </>
           ) : (
-            <Link to="/login" className="btn btn-red">Sign in</Link>
+            <Link to="/login" className="btn btn-blue">Sign in</Link>
           )}
         </div>
       </div>

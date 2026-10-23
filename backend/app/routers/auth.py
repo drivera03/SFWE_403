@@ -6,10 +6,10 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, UserResponse, ChangePasswordRequest
+from app.schemas.auth import LoginRequest, TokenResponse, RegisterRequest, UserResponse, ChangePasswordRequest, LockedUserResponse
 from app.security import verify_password, create_access_token, password_hash, DUMMY_HASH
 from app.notifications import emit_lockout_notification
-from app.dependencies import get_current_user
+from app.dependencies import get_current_user, require_role
 from app.models.user import User
 
 logger = logging.getLogger("uvicorn.error")
@@ -66,12 +66,23 @@ def locked_error(user: User) -> HTTPException:
     )
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(body: RegisterRequest, db: Session = Depends(get_db)):
+def register(
+    body: RegisterRequest,
+    db: Session = Depends(get_db),
+    manager: User = Depends(require_role("lab_manager")),
+):
+    """Create a user account. Lab managers only."""
     email = body.email.strip().lower()
     if get_user_by_email(db, email):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "An account with this email already exists.")
 
-    user = User(email=email, role=body.role, password_hash=password_hash.hash(body.password))
+    user = User(
+        email=email,
+        role=body.role,
+        password_hash=password_hash.hash(body.password),
+        failed_login_attempts=0,
+        locked_until=None,
+    )
     db.add(user)
     try:
         db.commit()
@@ -81,8 +92,42 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "An account with this email already exists.")
     db.refresh(user)
 
-    logger.info("Registered new user email=%s id=%s role=%s", user.email, user.id, user.role)
+    # Never log the password or its hash.
+    logger.info("User registered id=%s role=%s created_by=%s", user.id, user.role, manager.id)
     return UserResponse(id=user.id, email=user.email, role=user.role)
+
+@router.get("/locked-users", response_model=list[LockedUserResponse])
+def list_locked_users(
+    db: Session = Depends(get_db),
+    manager: User = Depends(require_role("lab_manager")),
+):
+    """List accounts that are currently locked. Lab managers only."""
+    candidates = db.query(User).filter(User.locked_until.is_not(None)).order_by(User.email).all()
+    return [
+        LockedUserResponse(id=u.id, email=u.email, role=u.role, locked_until=as_utc(u.locked_until))
+        for u in candidates
+        if is_locked(u)
+    ]
+
+@router.post("/unlock/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def unlock_account(
+    user_id: int,
+    db: Session = Depends(get_db),
+    manager: User = Depends(require_role("lab_manager")),
+):
+    """Unlock an account and reset its failed-login counter. Lab managers only."""
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "User not found")
+
+    was_locked = is_locked(user)
+    previous_attempts = user.failed_login_attempts
+    reset_failed_logins(db, user)  # clears failed_login_attempts and locked_until, then commits
+
+    logger.info(
+        "Account unlocked user_id=%s by=%s was_locked=%s previous_failed_attempts=%s",
+        user.id, manager.id, was_locked, previous_attempts,
+    )
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest, db: Session = Depends(get_db)):

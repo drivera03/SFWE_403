@@ -53,9 +53,11 @@ def update_patient(patient_id: int, body: PatientUpdate, db: Session = Depends(g
 @router.delete(
     "/{patient_id}",
     status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_role("lab_manager"))],
+    dependencies=[Depends(require_role("lab_manager", "specimen_collector"))],
 )
 def delete_patient(patient_id: int, db: Session = Depends(get_db)):
     patient = get_patient_or_404(patient_id, db)
     db.delete(patient)
     db.commit()
+    # TODO(activity log): deleting a patient is a sensitive action. Once the activity log
+    # exists, record who deleted which patient id here. (Don't store patient names/details.)

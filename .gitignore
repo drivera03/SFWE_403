@@ -223,3 +223,6 @@ dist/
 frontend/.env
 .DS_Store
 .DS_Store
+
+# patch files
+*.patch

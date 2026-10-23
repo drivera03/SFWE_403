@@ -9,6 +9,8 @@ import "../styles/patients.css";
 
 // Roles allowed to create patients per MVP 1 matrix
 const CREATE_ROLES = ["lab_manager", "manager", "specimen_collector", "lab_technician", "technician", "cashier"];
+// Roles allowed to delete patients (must match require_role on DELETE /patients/{id})
+const DELETE_ROLES = ["lab_manager", "specimen_collector"];
 
 export default function Patients() {
   const navigate = useNavigate();
@@ -31,7 +33,7 @@ export default function Patients() {
 
   const userRole = (currentUser?.role || "").toLowerCase();
   const canCreate = CREATE_ROLES.includes(userRole);
-  const canDelete = userRole === "lab_manager";
+  const canDelete = DELETE_ROLES.includes(userRole);
 
   const handleOpenRecord = (patient) => {
     setSelectedPatient(patient);
