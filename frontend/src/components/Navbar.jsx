@@ -23,6 +23,7 @@ export default function Navbar() {
           {isAuthenticated ? (
             <>
               <span className="nav-user">
+                <Link to="/unlock-accounts" className="nav-link nav-unlock-link">Unlock Accounts</Link>
                 <span className="nav-user-email">{user.email}</span>
                 <span className="nav-user-role">{user.role}</span>
               </span>
