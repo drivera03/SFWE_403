@@ -3,7 +3,7 @@ import unittest
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
-TEST_DB_FILE = "/tmp/test_auth.db" if os.path.exists("/tmp") else "test_auth.db"
+TEST_DB_FILE = "test_auth.db"
 os.environ["SECRET_KEY"] = "test-secret-key-for-unit-testing-32charsmin"
 os.environ["DATABASE_URL"] = f"sqlite:///{TEST_DB_FILE}"
 

@@ -1,23 +1,22 @@
-from contextlib import asynccontextmanager
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
-
 from app.database import engine, Base
-from app import models  # Ensures all models are registered with Base.metadata
+from fastapi.middleware.cors import CORSMiddleware
 from app.seed import seed_demo_users
-from app.routers import auth, patients
-
+from contextlib import asynccontextmanager
+from app.models import user
+from app.routers import patients
+from app.routers import auth
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Seed the database with demo users if it doesn't exist yet
+    # seed the database with demo users if it doesn't exist yet
     Base.metadata.create_all(bind=engine)
     seed_demo_users()
     yield
 
-
 app = FastAPI(lifespan=lifespan)
+
 
 origins = [
     "http://localhost:5173",
@@ -32,11 +31,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
-
 
 @app.get("/db-check")
 def db_check():
@@ -46,4 +43,5 @@ def db_check():
 
 
 app.include_router(auth.router)
+
 app.include_router(patients.router)
