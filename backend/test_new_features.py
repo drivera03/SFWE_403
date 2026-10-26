@@ -314,7 +314,10 @@ class TestNewFeatures(unittest.TestCase):
     # Ticket SXFT5-39: GET /patients/{id} live data endpoint
     # ============================================================
     def test_get_patient_detail_success(self):
-        res = self.client.get("/patients/101")
+        res = self.client.get(
+            "/patients/101",
+            headers={"Authorization": f"Bearer {self.tech_token}"},
+        )
         self.assertEqual(res.status_code, 200)
         data = res.json()
         self.assertEqual(data["id"], 101)
@@ -329,7 +332,10 @@ class TestNewFeatures(unittest.TestCase):
         self.assertEqual(data["tests"][0]["test_name"], "Comprehensive Metabolic Panel")
 
     def test_get_patient_detail_not_found_returns_404(self):
-        res = self.client.get("/patients/99999")
+        res = self.client.get(
+            "/patients/99999",
+            headers={"Authorization": f"Bearer {self.tech_token}"},
+        )
         self.assertEqual(res.status_code, 404)
 
 

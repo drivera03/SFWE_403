@@ -294,14 +294,19 @@ export default function PatientDetail() {
 
       {/* Linked Lab Tests Section */}
       <section className="detail-card section-tests">
-        <div className="card-header">
-          <span className="card-icon-tag tag-purple">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M10 2v7.31M14 9.3V1.99M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0" />
-              <path d="M5.52 16h12.96" />
-            </svg>
-          </span>
-          <h2 className="card-title">Linked Laboratory Tests ({patient.tests ? patient.tests.length : 0})</h2>
+        <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <span className="card-icon-tag tag-purple">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M10 2v7.31M14 9.3V1.99M8.5 2h7M14 9.3a6.5 6.5 0 1 1-4 0" />
+                <path d="M5.52 16h12.96" />
+              </svg>
+            </span>
+            <h2 className="card-title">Linked Laboratory Tests ({patient.tests ? patient.tests.length : 0})</h2>
+          </div>
+          <Link to={`/patients/${patient.id}/tests`} className="btn btn-secondary btn-sm" id="view-all-tests-btn">
+            Manage Tests →
+          </Link>
         </div>
 
         {patient.tests && patient.tests.length > 0 ? (
@@ -313,19 +318,29 @@ export default function PatientDetail() {
                   <th>Test Name</th>
                   <th>Status</th>
                   <th>Order Date</th>
+                  <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {patient.tests.map((test) => (
                   <tr key={test.id}>
                     <td>#{test.id}</td>
-                    <td className="font-semibold">{test.test_name}</td>
+                    <td className="font-semibold">
+                      <Link to={`/patients/${patient.id}/tests/${test.id}`} className="patient-name-link">
+                        {test.test_name}
+                      </Link>
+                    </td>
                     <td>
-                      <span className={`status-pill status-${test.status.toLowerCase()}`}>
+                      <span className={`status-pill status-${test.status.toLowerCase().replace('-', '_')}`}>
                         {test.status}
                       </span>
                     </td>
                     <td>{new Date(test.created_at).toLocaleDateString()}</td>
+                    <td style={{ textAlign: 'right' }}>
+                      <Link to={`/patients/${patient.id}/tests/${test.id}`} className="btn btn-secondary btn-sm">
+                        View Details →
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -334,6 +349,11 @@ export default function PatientDetail() {
         ) : (
           <div className="empty-tests-note">
             <p>No tests currently linked to this patient. Record is eligible for safe deletion.</p>
+            <div style={{ marginTop: '0.85rem' }}>
+              <Link to={`/patients/${patient.id}/tests`} className="btn btn-primary btn-sm">
+                + Order First Test
+              </Link>
+            </div>
           </div>
         )}
       </section>

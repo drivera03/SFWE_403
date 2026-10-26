@@ -10,6 +10,8 @@ import ProtectedRoute from './components/ProtectedRoute';
 import PatientList from './pages/PatientList';
 import PatientDetail from './pages/PatientDetail';
 import PatientEdit from './pages/PatientEdit';
+import PatientTests from './pages/PatientTests';
+import TestDetail from './pages/TestDetail';
 import NotFound from './pages/NotFound';
 import './index.css';
 
@@ -52,6 +54,28 @@ export default function App() {
                     <Navbar />
                     <main className="main-content">
                       <PatientEdit />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/patients/:id/tests"
+                element={
+                  <>
+                    <Navbar />
+                    <main className="main-content">
+                      <PatientTests />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/patients/:id/tests/:testId"
+                element={
+                  <>
+                    <Navbar />
+                    <main className="main-content">
+                      <TestDetail />
                     </main>
                   </>
                 }

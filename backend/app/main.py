@@ -6,7 +6,7 @@ from sqlalchemy import text
 from app.database import engine, Base
 from app import models  # Ensures all models are registered with Base.metadata
 from app.seed import seed_demo_users
-from app.routers import auth, patients
+from app.routers import auth, patients, lab_tests
 
 
 @asynccontextmanager
@@ -47,3 +47,4 @@ def db_check():
 
 app.include_router(auth.router)
 app.include_router(patients.router)
+app.include_router(lab_tests.router)
