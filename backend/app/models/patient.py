@@ -1,7 +1,7 @@
 from datetime import date, datetime
 
 from sqlalchemy import String, Date, DateTime, func
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
 
@@ -21,3 +21,10 @@ class Patient(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+    tests: Mapped[list["Test"]] = relationship(back_populates="patient")
+
+    @property
+    def age(self) -> int:
+        today = date.today()
+        dob = self.date_of_birth
+        return today.year - dob.year - ((today.month, today.day) < (dob.month, dob.day))
