@@ -22,8 +22,22 @@ export default function UnlockAccounts() {
   }, []);
 
   useEffect(() => {
-    loadLockedUsers();
-  }, [loadLockedUsers]);
+    let ignore = false;
+    async function init() {
+      try {
+        const list = await getLockedUsers();
+        if (!ignore) setLockedUsers(list);
+      } catch (err) {
+        if (!ignore) setError(err.message);
+      } finally {
+        if (!ignore) setLoadingList(false);
+      }
+    }
+    init();
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();

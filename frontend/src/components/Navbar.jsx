@@ -1,121 +1,146 @@
-import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { BeakerIcon } from './Icons';
 
 export default function Navbar() {
   const { currentUser, isAuthenticated, switchRole, logout } = useAuth() || {};
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // Render public landing navigation on home page ("/")
-  if (location.pathname === '/') {
-    return (
-      <nav className="nav">
-        <div className="container nav-inner">
-          <a href="#top" className="logo">
-            <span className="logo-icon">
-              <BeakerIcon size={22} />
-            </span>
-            <span className="logo-text">CLMS</span>
-          </a>
-          <div className="nav-links">
-            <a href="#features" className="nav-link">Features</a>
-            <a href="#how" className="nav-link">How it works</a>
-            <a href="#roles" className="nav-link">Roles</a>
-            <Link to="/patients" className="nav-link">Patients</Link>
-            <Link to="/login" className="btn btn-red">Sign in</Link>
-          </div>
-        </div>
-      </nav>
-    );
-  }
+  const isPatientsActive =
+    location.pathname.startsWith('/patients') &&
+    !location.pathname.includes('intake') &&
+    !location.pathname.endsWith('/new');
 
-  // Render CLMS application navbar on internal routes
+  const isIntakeActive =
+    location.pathname.includes('intake') ||
+    location.pathname.startsWith('/tests') ||
+    location.pathname.endsWith('/new');
+
   const roles = [
-    { id: 'lab_manager', label: 'Lab Manager', badgeClass: 'badge-manager', canDelete: true },
-    { id: 'specimen_collector', label: 'Specimen Collector', badgeClass: 'badge-collector', canDelete: false },
-    { id: 'technician', label: 'Technician', badgeClass: 'badge-tech', canDelete: false },
-    { id: 'pathologist', label: 'Pathologist', badgeClass: 'badge-pathologist', canDelete: false },
+    { id: 'lab_manager', label: 'Lab Manager' },
+    { id: 'specimen_collector', label: 'Specimen Collector' },
+    { id: 'technician', label: 'Technician' },
+    { id: 'pathologist', label: 'Pathologist' },
   ];
 
-  const currentRoleObj = roles.find((r) => r.id === currentUser?.role) || {
-    label: currentUser?.role || 'Guest',
-    badgeClass: 'badge-default',
-    canDelete: false,
+  const handleSignOut = () => {
+    logout?.();
+    navigate('/login');
   };
 
   return (
-    <header className="clms-navbar">
-      <div className="navbar-container">
-        <div className="navbar-left">
-          <Link to="/" className="brand-logo">
-            <span className="logo-icon-wrap">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="logo-svg">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
-            </span>
-            <div className="brand-text">
-              <span className="brand-title">CLMS</span>
-              <span className="brand-subtitle">Clinical Lab Core</span>
-            </div>
+    <nav className="nav" style={{ position: 'sticky', top: 0, zIndex: 100 }}>
+      <div className="container nav-inner">
+        <Link to="/" className="logo">
+          <span className="logo-icon">
+            <BeakerIcon size={22} />
+          </span>
+          <span className="logo-text">CLMS</span>
+        </Link>
+
+        <div className="nav-links">
+          <Link to="/#features" className="nav-link">
+            Features
+          </Link>
+          <Link to="/#how" className="nav-link">
+            How it works
+          </Link>
+          <Link to="/#roles" className="nav-link">
+            Roles
+          </Link>
+          <Link
+            to="/patients"
+            className="nav-link"
+            style={isPatientsActive ? { color: '#ffffff', fontWeight: 700 } : {}}
+          >
+            Patients
+          </Link>
+          <Link
+            to="/tests/intake"
+            className="nav-link"
+            style={isIntakeActive ? { color: '#ffffff', fontWeight: 700 } : {}}
+            id="nav-test-intake-link"
+          >
+            Test Intake
           </Link>
 
-          <nav className="nav-links">
-            <Link
-              to="/patients"
-              className={`nav-link ${location.pathname.startsWith('/patients') ? 'active' : ''}`}
+          {/* Persona role switcher for multi-role testing */}
+          {isAuthenticated && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Role:
+              </span>
+              <select
+                value={currentUser?.role || ''}
+                onChange={(e) => switchRole?.(e.target.value)}
+                style={{
+                  background: 'rgba(255,255,255,0.18)',
+                  color: '#ffffff',
+                  border: '1px solid rgba(255,255,255,0.3)',
+                  borderRadius: '4px',
+                  padding: '3px 6px',
+                  fontSize: '0.75rem',
+                  outline: 'none',
+                  cursor: 'pointer',
+                }}
+                title="Switch active role persona"
+              >
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id} style={{ color: '#0f172a' }}>
+                    {r.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Current user & role display */}
+          {isAuthenticated && currentUser ? (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                marginLeft: '8px',
+                fontSize: '0.85rem',
+                color: 'rgba(255,255,255,0.9)',
+              }}
             >
-              Patients
-            </Link>
-            <Link to="/" className="nav-link">
-              Home
-            </Link>
-          </nav>
-        </div>
-
-        <div className="navbar-right">
-          {isAuthenticated ? (
-            <>
-              {/* Active Role Selector Tool for verifying role-based behavior */}
-              <div className="role-switcher-container">
-                <span className="role-switcher-label">Active Role:</span>
-                <div className="role-buttons">
-                  {roles.map((r) => (
-                    <button
-                      key={r.id}
-                      type="button"
-                      id={`role-switch-${r.id}`}
-                      className={`role-chip ${currentUser?.role === r.id ? 'active ' + r.badgeClass : ''}`}
-                      onClick={() => switchRole?.(r.id)}
-                      title={`Switch active test persona to ${r.label}`}
-                    >
-                      {r.label}
-                      {r.canDelete && <span className="delete-perm-star" title="Has delete permissions">★</span>}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="user-profile-badge">
-                <div className="avatar-circle">
-                  {currentUser?.username ? currentUser.username.charAt(0).toUpperCase() : currentUser?.email?.charAt(0).toUpperCase() || 'U'}
-                </div>
-                <div className="user-details">
-                  <span className="user-name">{currentUser?.username || currentUser?.email || 'User'}</span>
-                  <span className={`user-role-tag ${currentRoleObj.badgeClass}`}>
-                    {currentRoleObj.label}
-                  </span>
-                </div>
-              </div>
-
-              <Link to="/change-password" className="nav-link nav-account-link">Change password</Link>
-              <button type="button" className="btn btn-sm btn-secondary" onClick={logout}>Sign out</button>
-            </>
+              <span>{currentUser.email || currentUser.username}</span>
+              <span
+                className="role-tag"
+                style={{
+                  background: 'rgba(255,255,255,0.2)',
+                  padding: '2px 8px',
+                  borderRadius: '4px',
+                  fontSize: '0.75rem',
+                  textTransform: 'capitalize',
+                  color: '#fff',
+                }}
+              >
+                {currentUser.role}
+              </span>
+              <button
+                type="button"
+                className="btn btn-red"
+                style={{ border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}
+                onClick={handleSignOut}
+              >
+                Sign out
+              </button>
+            </div>
           ) : (
-            <Link to="/login" className="btn btn-sm btn-primary">Sign in</Link>
+            <Link
+              to="/login"
+              className="btn btn-red"
+              style={{ border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}
+            >
+              Sign in
+            </Link>
           )}
         </div>
       </div>
-    </header>
+    </nav>
   );
 }

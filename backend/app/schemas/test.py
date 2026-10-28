@@ -51,3 +51,21 @@ class TestResponse(BaseModel):
     insurance_provider: str | None = None
     insurance_policy_number: str | None = None
     notes: str | None = None
+
+
+class PhysicianResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+
+
+class PhysicianCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
+class InstrumentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str

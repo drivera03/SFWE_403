@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import Navbar from './components/Navbar';
@@ -7,11 +6,12 @@ import Login from './pages/Login';
 import Signup from './pages/Signup';
 import ChangePassword from './pages/ChangePassword';
 import ProtectedRoute from './components/ProtectedRoute';
-import PatientList from './pages/PatientList';
+import Patients from './pages/Patients';
 import PatientDetail from './pages/PatientDetail';
 import PatientEdit from './pages/PatientEdit';
 import PatientTests from './pages/PatientTests';
 import TestDetail from './pages/TestDetail';
+import TestIntake from './pages/TestIntake';
 import UnlockUser from './pages/UnlockUser';
 import NotFound from './pages/NotFound';
 import './index.css';
@@ -20,31 +20,19 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <div className="app-shell">
+        <div className="patient-page">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
             <Route element={<ProtectedRoute />}>
-              <Route
-                path="/patients"
-                element={
-                  <>
-                    <Navbar />
-                    <main className="main-content">
-                      <PatientList />
-                    </main>
-                  </>
-                }
-              />
+              <Route path="/patients" element={<Patients />} />
               <Route
                 path="/patients/:id"
                 element={
                   <>
                     <Navbar />
-                    <main className="main-content">
-                      <PatientDetail />
-                    </main>
+                    <PatientDetail />
                   </>
                 }
               />
@@ -53,9 +41,7 @@ export default function App() {
                 element={
                   <>
                     <Navbar />
-                    <main className="main-content">
-                      <PatientEdit />
-                    </main>
+                    <PatientEdit />
                   </>
                 }
               />
@@ -64,9 +50,7 @@ export default function App() {
                 element={
                   <>
                     <Navbar />
-                    <main className="main-content">
-                      <PatientTests />
-                    </main>
+                    <PatientTests />
                   </>
                 }
               />
@@ -75,20 +59,21 @@ export default function App() {
                 element={
                   <>
                     <Navbar />
-                    <main className="main-content">
-                      <TestDetail />
-                    </main>
+                    <TestDetail />
                   </>
                 }
               />
+              <Route path="/patients/:id/tests/new" element={<TestIntake />} />
+              <Route path="/patients/:id/intake" element={<TestIntake />} />
+              <Route path="/tests/intake" element={<TestIntake />} />
+              <Route path="/test/intake" element={<TestIntake />} />
+              <Route path="/tests/new" element={<TestIntake />} />
               <Route
                 path="/change-password"
                 element={
                   <>
                     <Navbar />
-                    <main className="main-content">
-                      <ChangePassword />
-                    </main>
+                    <ChangePassword />
                   </>
                 }
               />
@@ -97,14 +82,20 @@ export default function App() {
                 element={
                   <>
                     <Navbar />
-                    <main className="main-content">
-                      <UnlockUser />
-                    </main>
+                    <UnlockUser />
                   </>
                 }
               />
             </Route>
-            <Route path="*" element={<NotFound />} />
+            <Route
+              path="*"
+              element={
+                <>
+                  <Navbar />
+                  <NotFound />
+                </>
+              }
+            />
           </Routes>
         </div>
       </BrowserRouter>

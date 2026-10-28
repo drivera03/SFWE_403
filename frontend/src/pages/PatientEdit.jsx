@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getPatient, updatePatient } from '../services/api';
 
@@ -22,28 +22,37 @@ export default function PatientEdit() {
   const [success, setSuccess] = useState('');
 
   useEffect(() => {
-    loadPatient();
-  }, [id]);
-
-  const loadPatient = async () => {
-    setLoading(true);
-    try {
-      const data = await getPatient(id);
-      setFormData({
-        name: data.name || '',
-        dob: data.dob || '',
-        address: data.address || '',
-        phone: data.phone || '',
-        email: data.email || '',
-        insurance_provider: data.insurance_provider || '',
-        policy_number: data.policy_number || '',
-      });
-    } catch (err) {
-      setError(err.response?.data?.detail || err.message || 'Failed to load patient');
-    } finally {
-      setLoading(false);
+    let ignore = false;
+    async function loadPatient() {
+      setLoading(true);
+      try {
+        const data = await getPatient(id);
+        if (!ignore) {
+          setFormData({
+            name: data.name || '',
+            dob: data.dob || '',
+            address: data.address || '',
+            phone: data.phone || '',
+            email: data.email || '',
+            insurance_provider: data.insurance_provider || '',
+            policy_number: data.policy_number || '',
+          });
+        }
+      } catch (err) {
+        if (!ignore) {
+          setError(err.response?.data?.detail || err.message || 'Failed to load patient');
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
+      }
     }
-  };
+    loadPatient();
+    return () => {
+      ignore = true;
+    };
+  }, [id]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

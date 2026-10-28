@@ -6,7 +6,13 @@ from app.dependencies import get_current_user
 from app.models.patient import Patient
 from app.models.tests import Instrument, Physician, ResultStatus, Test
 from app.models.user import User
-from app.schemas.test import TestCreate, TestResponse
+from app.schemas.test import (
+    InstrumentResponse,
+    PhysicianCreate,
+    PhysicianResponse,
+    TestCreate,
+    TestResponse,
+)
 
 # Every test route requires a logged-in user.
 router = APIRouter(
@@ -62,6 +68,31 @@ def list_tests_for_patient(patient_id: int = Query(...), db: Session = Depends(g
         .order_by(Test.collection_datetime.desc(), Test.id.desc())
         .all()
     )
+
+
+@router.get("/physicians", response_model=list[PhysicianResponse])
+def list_physicians(db: Session = Depends(get_db)):
+    """List all registered physicians for test ordering."""
+    return db.query(Physician).order_by(Physician.name).all()
+
+
+@router.post("/physicians", response_model=PhysicianResponse, status_code=status.HTTP_201_CREATED)
+def create_physician(body: PhysicianCreate, db: Session = Depends(get_db)):
+    """Quickly register an ordering physician if not yet present."""
+    existing = db.query(Physician).filter(Physician.name == body.name).first()
+    if existing:
+        return existing
+    physician = Physician(name=body.name)
+    db.add(physician)
+    db.commit()
+    db.refresh(physician)
+    return physician
+
+
+@router.get("/instruments", response_model=list[InstrumentResponse])
+def list_instruments(db: Session = Depends(get_db)):
+    """List all registered lab instruments and analyzers."""
+    return db.query(Instrument).order_by(Instrument.name).all()
 
 
 @router.get("/{test_id}", response_model=TestResponse)
