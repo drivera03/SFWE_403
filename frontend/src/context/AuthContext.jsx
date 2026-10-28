@@ -17,8 +17,8 @@ export function AuthProvider({ children }) {
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [token, setToken] = useState(() => localStorage.getItem('clms_token') || '');
-  const [loading, setLoading] = useState(() => !!localStorage.getItem('clms_token'));
+  const [token, setToken] = useState(() => localStorage.getItem('clms_token') || localStorage.getItem('token') || '');
+  const [loading, setLoading] = useState(() => !!(localStorage.getItem('clms_token') || localStorage.getItem('token')));
 
   const isAuthenticated = !!currentUser;
 
@@ -33,14 +33,16 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (token) {
       localStorage.setItem('clms_token', token);
+      localStorage.setItem('token', token);
     } else {
       localStorage.removeItem('clms_token');
+      localStorage.removeItem('token');
     }
   }, [token]);
 
   // On page load, use the saved token to restore the session
   useEffect(() => {
-    const savedToken = localStorage.getItem('clms_token');
+    const savedToken = localStorage.getItem('clms_token') || localStorage.getItem('token');
     if (!savedToken) {
       setLoading(false);
       return;
@@ -56,6 +58,7 @@ export function AuthProvider({ children }) {
         setToken('');
         localStorage.removeItem('clms_user');
         localStorage.removeItem('clms_token');
+        localStorage.removeItem('token');
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -87,6 +90,7 @@ export function AuthProvider({ children }) {
     const data = await loginUser(email, password);
     setToken(data.access_token);
     localStorage.setItem('clms_token', data.access_token);
+    localStorage.setItem('token', data.access_token);
     try {
       const me = await getMe(data.access_token);
       setCurrentUser(me);
@@ -94,6 +98,9 @@ export function AuthProvider({ children }) {
     } catch (err) {
       setCurrentUser(null);
       setToken('');
+      localStorage.removeItem('clms_user');
+      localStorage.removeItem('clms_token');
+      localStorage.removeItem('token');
       throw err;
     }
   }, []);
@@ -103,10 +110,12 @@ export function AuthProvider({ children }) {
     setToken('');
     localStorage.removeItem('clms_user');
     localStorage.removeItem('clms_token');
+    localStorage.removeItem('token');
   }, []);
 
   const value = useMemo(
     () => ({
+      user: currentUser,
       currentUser,
       setCurrentUser,
       token,

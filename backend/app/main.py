@@ -7,10 +7,22 @@ from contextlib import asynccontextmanager
 from app.models import user
 from app.routers import auth, patients, lab_tests
 
+def ensure_patient_columns():
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS first_name VARCHAR(100);"))
+            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS last_name VARCHAR(100);"))
+            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS date_of_birth DATE;"))
+            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS sex VARCHAR(20);"))
+            conn.commit()
+    except Exception:
+        pass
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # seed the database with demo users if it doesn't exist yet
     Base.metadata.create_all(bind=engine)
+    ensure_patient_columns()
     seed_demo_users()
     yield
 

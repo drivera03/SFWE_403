@@ -15,7 +15,7 @@ export async function getCurrentUser(token, signal) {
 
 async function post(path, body, { auth = false } = {}) {
   const headers = { "Content-Type": "application/json" };
-  if (auth) headers.Authorization = `Bearer ${localStorage.getItem("token")}`;
+  if (auth) headers.Authorization = `Bearer ${(localStorage.getItem("clms_token") || localStorage.getItem("token"))}`;
 
   const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
@@ -40,3 +40,26 @@ export const register = (email, password, role) =>
 
 export const changePassword = (currentPassword, newPassword) =>
   post("/auth/change-password", { current_password: currentPassword, new_password: newPassword }, { auth: true });
+
+export async function getLockedUsers() {
+  const res = await fetch(`${API_URL}/auth/locked-users`, {
+    headers: { Authorization: `Bearer ${(localStorage.getItem("clms_token") || localStorage.getItem("token"))}` },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Failed to load locked users");
+  }
+  return res.json();
+}
+
+export async function unlockUser(userId) {
+  const res = await fetch(`${API_URL}/auth/unlock/${userId}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${(localStorage.getItem("clms_token") || localStorage.getItem("token"))}` },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.detail || "Failed to unlock user");
+  }
+  return res.json();
+}

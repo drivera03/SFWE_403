@@ -25,11 +25,13 @@ export default function PatientList() {
     }
   };
 
-  const filteredPatients = patients.filter((p) =>
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.insurance_provider.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    String(p.id).includes(searchTerm)
-  );
+  const filteredPatients = (patients || []).filter((p) => {
+    const term = (searchTerm || '').toLowerCase();
+    const name = (p.name || `${p.first_name || ''} ${p.last_name || ''}`.trim() || '').toLowerCase();
+    const provider = (p.insurance_provider || '').toLowerCase();
+    const idStr = String(p.id ?? '');
+    return name.includes(term) || provider.includes(term) || idStr.includes(term);
+  });
 
   return (
     <div className="page-container">
@@ -104,14 +106,14 @@ export default function PatientList() {
                     </td>
                     <td>
                       <Link to={`/patients/${p.id}`} className="patient-name-link font-semibold">
-                        {p.name}
+                        {p.name || `${p.first_name || ''} ${p.last_name || ''}`.trim() || `Patient #${p.id}`}
                       </Link>
                     </td>
-                    <td>{p.dob}</td>
-                    <td>{p.phone}</td>
-                    <td>{p.insurance_provider}</td>
+                    <td>{p.dob || (p.date_of_birth ? String(p.date_of_birth) : 'N/A')}</td>
+                    <td>{p.phone || 'N/A'}</td>
+                    <td>{p.insurance_provider || 'N/A'}</td>
                     <td>
-                      <span className="policy-code">{p.policy_number}</span>
+                      <span className="policy-code">{p.policy_number || 'N/A'}</span>
                     </td>
                     <td>
                       {testCount > 0 ? (

@@ -116,6 +116,7 @@ export default function PatientDetail() {
   }
 
   const hasLinkedTests = patient.tests && patient.tests.length > 0;
+  const patientName = patient.name || `${patient.first_name || ''} ${patient.last_name || ''}`.trim() || `Patient #${patient.id}`;
 
   return (
     <div className="page-container">
@@ -125,7 +126,7 @@ export default function PatientDetail() {
           Patients
         </Link>
         <span className="breadcrumb-separator">/</span>
-        <span className="breadcrumb-current">{patient.name}</span>
+        <span className="breadcrumb-current">{patientName}</span>
       </div>
 
       {actionSuccess && (
@@ -142,11 +143,11 @@ export default function PatientDetail() {
       <div className="detail-header-card">
         <div className="header-meta">
           <div className="patient-avatar-large">
-            {patient.name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
+            {patientName.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()}
           </div>
           <div className="header-text-block">
             <div className="header-title-row">
-              <h1 className="patient-full-name">{patient.name}</h1>
+              <h1 className="patient-full-name">{patientName}</h1>
               <span className="badge badge-id">ID: #{patient.id}</span>
               {hasLinkedTests ? (
                 <span className="badge badge-warning" title="Patient has linked laboratory tests">

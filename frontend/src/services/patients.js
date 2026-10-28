@@ -5,7 +5,7 @@ const API_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
  */
 async function apiRequest(path, { method = "GET", body = null, signal = null } = {}) {
   const headers = {};
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("clms_token") || localStorage.getItem("token");
   if (token) {
     headers.Authorization = `Bearer ${token}`;
   }

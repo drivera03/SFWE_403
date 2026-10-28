@@ -10,7 +10,7 @@ export const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('clms_token');
+  const token = localStorage.getItem('clms_token') || localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -59,7 +59,12 @@ export const unlockUser = async (userId) => {
   return res.data;
 };
 
-export const getMe = async () => {
-  const res = await api.get('/auth/me');
+export const getMe = async (token, signal) => {
+  const headers = {};
+  const activeToken = token || localStorage.getItem('clms_token') || localStorage.getItem('token');
+  if (activeToken) {
+    headers.Authorization = `Bearer ${activeToken}`;
+  }
+  const res = await api.get('/auth/me', { headers, signal });
   return res.data;
 };
