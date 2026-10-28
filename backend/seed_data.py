@@ -2,6 +2,7 @@ from app.database import engine, Base, SessionLocal
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.lab_test import LabTest
+from app.models.tests import Physician, Instrument
 from app.security import password_hash
 
 def seed():
@@ -104,7 +105,31 @@ def seed():
     db.add_all([t1, t2, t3])
     db.commit()
 
-    print("Seed complete! Users and patients created successfully.")
+    # Seed physicians and instruments
+    physicians = [
+        "Dr. Gregory House",
+        "Dr. Allison Cameron",
+        "Dr. Robert Chase",
+        "Dr. Lisa Cuddy",
+        "Dr. Eric Foreman",
+    ]
+    for doc in physicians:
+        if not db.query(Physician).filter_by(name=doc).first():
+            db.add(Physician(name=doc))
+
+    instruments = [
+        "Sysmex XN-1000",
+        "Roche Cobas 6000",
+        "Abbott Architect c8000",
+        "Beckman Coulter DxH 900",
+    ]
+    for inst in instruments:
+        if not db.query(Instrument).filter_by(name=inst).first():
+            db.add(Instrument(name=inst))
+
+    db.commit()
+
+    print("Seed complete! Users, patients, physicians, and instruments created successfully.")
     db.close()
 
 if __name__ == "__main__":

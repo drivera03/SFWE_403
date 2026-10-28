@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getPatient, deletePatient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
@@ -7,12 +7,13 @@ import DeleteConfirmModal from '../components/DeleteConfirmModal';
 export default function PatientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { currentUser, canDeletePatient } = useAuth();
+  const { canDeletePatient } = useAuth();
 
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(null);
   const [isNotFound, setIsNotFound] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   // Modal and deletion states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -21,26 +22,34 @@ export default function PatientDetail() {
   const [actionSuccess, setActionSuccess] = useState('');
 
   useEffect(() => {
-    fetchPatientData();
-  }, [id]);
-
-  const fetchPatientData = async () => {
-    setLoading(true);
-    setFetchError(null);
-    setIsNotFound(false);
-    try {
-      const data = await getPatient(id);
-      setPatient(data);
-    } catch (err) {
-      if (err.response?.status === 404) {
-        setIsNotFound(true);
-      } else {
-        setFetchError(err.response?.data?.detail || err.message || 'Failed to load patient record.');
+    let ignore = false;
+    async function loadPatient() {
+      try {
+        setFetchError(null);
+        setIsNotFound(false);
+        const data = await getPatient(id);
+        if (!ignore) {
+          setPatient(data);
+        }
+      } catch (err) {
+        if (!ignore) {
+          if (err.response?.status === 404) {
+            setIsNotFound(true);
+          } else {
+            setFetchError(err.response?.data?.detail || err.message || 'Failed to load patient record.');
+          }
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false);
+        }
       }
-    } finally {
-      setLoading(false);
     }
-  };
+    loadPatient();
+    return () => {
+      ignore = true;
+    };
+  }, [id, reloadKey]);
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true);
@@ -107,7 +116,14 @@ export default function PatientDetail() {
         <div className="error-card">
           <h2 className="error-title">Unable to Load Patient</h2>
           <p className="error-desc">{fetchError}</p>
-          <button type="button" className="btn btn-secondary" onClick={fetchPatientData}>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => {
+              setLoading(true);
+              setReloadKey((k) => k + 1);
+            }}
+          >
             Retry Connection
           </button>
         </div>
@@ -305,9 +321,14 @@ export default function PatientDetail() {
             </span>
             <h2 className="card-title">Linked Laboratory Tests ({patient.tests ? patient.tests.length : 0})</h2>
           </div>
-          <Link to={`/patients/${patient.id}/tests`} className="btn btn-secondary btn-sm" id="view-all-tests-btn">
-            Manage Tests →
-          </Link>
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <Link to={`/patients/${patient.id}/tests/new`} className="btn btn-primary btn-sm" id="patient-intake-test-btn">
+              + New Test Intake
+            </Link>
+            <Link to={`/patients/${patient.id}/tests`} className="btn btn-secondary btn-sm" id="view-all-tests-btn">
+              Manage Tests →
+            </Link>
+          </div>
         </div>
 
         {patient.tests && patient.tests.length > 0 ? (
@@ -350,9 +371,12 @@ export default function PatientDetail() {
         ) : (
           <div className="empty-tests-note">
             <p>No tests currently linked to this patient. Record is eligible for safe deletion.</p>
-            <div style={{ marginTop: '0.85rem' }}>
-              <Link to={`/patients/${patient.id}/tests`} className="btn btn-primary btn-sm">
-                + Order First Test
+            <div style={{ marginTop: '0.85rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <Link to={`/patients/${patient.id}/tests/new`} className="btn btn-primary btn-sm">
+                + New Test Intake
+              </Link>
+              <Link to={`/patients/${patient.id}/tests`} className="btn btn-secondary btn-sm">
+                View Tests
               </Link>
             </div>
           </div>

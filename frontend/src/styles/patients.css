@@ -30,8 +30,102 @@
 .patient-page {
   min-height: 100vh;
   background-color: var(--bg);
+  color: var(--text);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   display: flex;
   flex-direction: column;
+}
+
+/* Scoped UA Header to prevent global index.css dark leaks */
+.patient-page .nav {
+  position: sticky;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--navy);
+  border-bottom: 4px solid var(--red);
+}
+
+.patient-page .nav-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 80px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.patient-page .logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.patient-page .logo-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: var(--red);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 20px;
+}
+
+.patient-page .logo-text {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+.patient-page .nav-links {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.patient-page .nav-link {
+  color: rgba(255, 255, 255, 0.85);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.95rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: color 0.15s;
+  background: transparent;
+}
+
+.patient-page .nav-link:hover {
+  color: #ffffff;
+  background: transparent;
+}
+
+.patient-page .btn-red {
+  background: var(--red);
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.patient-page .btn-red:hover {
+  background: var(--red-dark);
+}
+
+.patient-page .role-tag {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  color: #fff;
 }
 
 /* Patient Header / App Bar */
@@ -510,3 +604,223 @@
 }
 .patient-delete:hover:not(:disabled) { background: #8a0419; }
 .patient-delete:disabled { opacity: 0.6; cursor: wait; }
+
+/* Test Intake Section Box & Components (Light Theme matching Patients) */
+.intake-section-box {
+  background: var(--card-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  box-shadow: var(--shadow-sm);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.intake-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.intake-section-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.intake-step-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--blue-50);
+  border: 1px solid var(--blue-100);
+  color: var(--blue);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.intake-section-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0;
+}
+
+.intake-section-desc {
+  font-size: 0.85rem;
+  color: var(--mute);
+  margin-top: 2px;
+}
+
+/* Preset chips */
+.preset-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.preset-chip {
+  background: #f8fafc;
+  border: 1px solid var(--line);
+  color: var(--text);
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.preset-chip:hover {
+  border-color: var(--blue);
+  background: var(--blue-50);
+  color: var(--blue-dark);
+}
+
+.preset-chip.active {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Sample Type Card Grid */
+.sample-type-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.sample-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.sample-card:hover {
+  border-color: var(--blue);
+  background: var(--blue-50);
+}
+
+.sample-card.active {
+  border-color: var(--blue);
+  background: var(--blue-50);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+.sample-card-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.sample-card-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.sample-card-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.sample-card-subtitle {
+  font-size: 0.75rem;
+  color: var(--mute);
+}
+
+/* Auto generator button next to input */
+.input-with-auto-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.input-with-auto-btn input {
+  flex: 1;
+}
+
+.btn-auto-id {
+  background: #f1f5f9;
+  border: 1px solid var(--line);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 9px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+.btn-auto-id:hover {
+  background: #e2e8f0;
+  color: var(--ink);
+}
+
+/* Success Card */
+.intake-success-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 36px 32px;
+  box-shadow: var(--shadow-md);
+  text-align: center;
+  max-width: 680px;
+  margin: 20px auto;
+}
+
+.intake-success-badge-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #dcfce7;
+  color: #15803d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  margin-bottom: 16px;
+}
+
+.intake-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 24px 0;
+  text-align: left;
+  font-size: 0.875rem;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.intake-summary-table td {
+  padding: 10px 16px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.intake-summary-table tr:last-child td {
+  border-bottom: none;
+}
+
+.intake-summary-table td:first-child {
+  font-weight: 600;
+  color: var(--mute);
+  width: 35%;
+  background: #f8fafc;
+}
+

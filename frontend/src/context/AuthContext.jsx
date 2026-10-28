@@ -1,17 +1,10 @@
-import React, { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
 import { loginUser, getMe } from '../services/api';
 
 export const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  // Pre-configured preset roles for swift testing and demo verification
-  const defaultUser = {
-    id: 1,
-    username: 'lab_manager',
-    email: 'manager@clms.local',
-    role: 'lab_manager',
-  };
-
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('clms_user');
     return saved ? JSON.parse(saved) : null;
@@ -44,7 +37,6 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const savedToken = localStorage.getItem('clms_token') || localStorage.getItem('token');
     if (!savedToken) {
-      setLoading(false);
       return;
     }
 
@@ -68,12 +60,12 @@ export function AuthProvider({ children }) {
   }, []);
 
   // Check if current user role has permission to delete patients
-  const canDeletePatient = () => {
+  const canDeletePatient = useCallback(() => {
     return currentUser?.role === 'lab_manager';
-  };
+  }, [currentUser]);
 
   // Quick switch role utility (enables testing criteria: "Verified by logging in as each role")
-  const switchRole = (role) => {
+  const switchRole = useCallback((role) => {
     const roleProfiles = {
       lab_manager: { id: 1, username: 'lab_manager', email: 'manager@clms.local', role: 'lab_manager' },
       specimen_collector: { id: 2, username: 'specimen_collector', email: 'collector@clms.local', role: 'specimen_collector' },
@@ -84,7 +76,7 @@ export function AuthProvider({ children }) {
 
     const target = roleProfiles[role] || { id: 99, username: role, email: `${role}@clms.local`, role };
     setCurrentUser(target);
-  };
+  }, []);
 
   const login = useCallback(async (email, password) => {
     const data = await loginUser(email, password);
@@ -127,7 +119,7 @@ export function AuthProvider({ children }) {
       login,
       logout,
     }),
-    [currentUser, token, loading, isAuthenticated, login, logout]
+    [currentUser, token, loading, isAuthenticated, canDeletePatient, switchRole, login, logout]
   );
 
   return (

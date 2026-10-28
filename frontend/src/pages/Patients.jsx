@@ -1,37 +1,43 @@
-import { useState } from "react";
-import PatientList from "../components/PatientList";
-import { Link, useNavigate } from "react-router-dom";
-import { BeakerIcon } from "../components/Icons";
-import { createPatient } from "../services/patients";
-import { useAuth } from "../hooks/useAuth";
-import "../styles/landing.css";
-import "../styles/patients.css";
+import { useState } from 'react';
+import PatientList from '../components/PatientList';
+import { Link } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import { createPatient } from '../services/patients';
+import { useAuth } from '../hooks/useAuth';
+import '../styles/landing.css';
+import '../styles/patients.css';
 
 // Roles allowed to create patients per MVP 1 matrix
-const CREATE_ROLES = ["lab_manager", "manager", "specimen_collector", "lab_technician", "technician", "cashier"];
+const CREATE_ROLES = [
+  'lab_manager',
+  'manager',
+  'specimen_collector',
+  'lab_technician',
+  'technician',
+  'cashier',
+];
 
 export default function Patients() {
-  const navigate = useNavigate();
-  const { user: currentUser, logout } = useAuth();
+  const { user: currentUser } = useAuth();
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [refreshKey, setRefreshKey] = useState(0);
-  const [registerError, setRegisterError] = useState("");
+  const [registerError, setRegisterError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [newPatient, setNewPatient] = useState({
-    first_name: "",
-    last_name: "",
-    date_of_birth: "",
-    sex: "",
-    phone: "",
-    email: "",
-    address: "",
+    first_name: '',
+    last_name: '',
+    date_of_birth: '',
+    sex: '',
+    phone: '',
+    email: '',
+    address: '',
   });
 
-  const userRole = (currentUser?.role || "").toLowerCase();
-  const canCreate = CREATE_ROLES.includes(userRole);
-  const canDelete = userRole === "lab_manager";
+  const userRole = (currentUser?.role || '').toLowerCase();
+  const canCreate = !currentUser || CREATE_ROLES.includes(userRole);
+  const canDelete = userRole === 'lab_manager';
 
   const handleOpenRecord = (patient) => {
     setSelectedPatient(patient);
@@ -39,7 +45,7 @@ export default function Patients() {
 
   const handleCreateSubmit = async (e) => {
     e.preventDefault();
-    setRegisterError("");
+    setRegisterError('');
     setIsSubmitting(true);
     try {
       await createPatient({
@@ -53,17 +59,17 @@ export default function Patients() {
       });
       setIsRegisterOpen(false);
       setNewPatient({
-        first_name: "",
-        last_name: "",
-        date_of_birth: "",
-        sex: "",
-        phone: "",
-        email: "",
-        address: "",
+        first_name: '',
+        last_name: '',
+        date_of_birth: '',
+        sex: '',
+        phone: '',
+        email: '',
+        address: '',
       });
       setRefreshKey((k) => k + 1);
     } catch (err) {
-      setRegisterError(err.message || "Failed to register patient");
+      setRegisterError(err.message || 'Failed to register patient');
     } finally {
       setIsSubmitting(false);
     }
@@ -71,48 +77,7 @@ export default function Patients() {
 
   return (
     <div className="patient-page">
-      {/* Top Navbar matching Landing Page */}
-      <nav className="nav" style={{ position: "sticky" }}>
-        <div className="container nav-inner">
-          <Link to="/" className="logo">
-            <span className="logo-icon">
-              <BeakerIcon size={22} />
-            </span>
-            <span className="logo-text">CLMS</span>
-          </Link>
-
-          <div className="nav-links">
-            <Link to="/#features" className="nav-link">Features</Link>
-            <Link to="/#how" className="nav-link">How it works</Link>
-            <Link to="/#roles" className="nav-link">Roles</Link>
-            <Link to="/patients" className="nav-link" style={{ color: "#fff", fontWeight: 700 }}>
-              Patients
-            </Link>
-
-            {/* Current user & role display */}
-            {currentUser && (
-              <div style={{ display: "flex", alignItems: "center", gap: "6px", marginLeft: "12px", fontSize: "0.85rem", color: "rgba(255,255,255,0.85)" }}>
-                <span>{currentUser.email}</span>
-                <span className="role-tag" style={{ background: "rgba(255,255,255,0.2)", padding: "2px 8px", borderRadius: "4px", fontSize: "0.75rem", textTransform: "capitalize" }}>
-                  {currentUser.role}
-                </span>
-              </div>
-            )}
-
-            <button
-              type="button"
-              className="btn btn-red"
-              style={{ border: "none", cursor: "pointer", fontSize: "0.875rem" }}
-              onClick={() => {
-                logout();
-                navigate("/login");
-              }}
-            >
-              Sign out
-            </button>
-          </div>
-        </div>
-      </nav>
+      <Navbar />
 
       {/* Main Content Area */}
       <main>
@@ -128,7 +93,12 @@ export default function Patients() {
 
       {/* Register Patient Modal */}
       {isRegisterOpen && (
-        <div className="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="register-modal-title">
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="register-modal-title"
+        >
           <div className="modal-card">
             <div className="modal-header">
               <h2 id="register-modal-title">Register New Patient</h2>
@@ -243,7 +213,15 @@ export default function Patients() {
                 </div>
 
                 {registerError && (
-                  <div style={{ color: "#b91c1c", fontSize: "0.85rem", background: "#fef2f2", padding: "8px 12px", borderRadius: "6px" }}>
+                  <div
+                    style={{
+                      color: '#b91c1c',
+                      fontSize: '0.85rem',
+                      background: '#fef2f2',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                    }}
+                  >
                     {registerError}
                   </div>
                 )}
@@ -258,7 +236,7 @@ export default function Patients() {
                     Cancel
                   </button>
                   <button type="submit" className="btn-register" disabled={isSubmitting}>
-                    {isSubmitting ? "Registering..." : "Submit Registration"}
+                    {isSubmitting ? 'Registering...' : 'Submit Registration'}
                   </button>
                 </div>
               </div>
@@ -282,16 +260,66 @@ export default function Patients() {
               </button>
             </div>
             <div className="modal-body">
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", background: "#f8fafc", padding: "16px", borderRadius: "8px", fontSize: "0.9rem" }}>
-                <div><strong>Name:</strong> {selectedPatient.last_name}, {selectedPatient.first_name}</div>
-                <div><strong>Patient ID:</strong> {selectedPatient.patient_number}</div>
-                <div><strong>DOB:</strong> {selectedPatient.date_of_birth}</div>
-                <div><strong>Sex:</strong> {selectedPatient.sex || "Not specified"}</div>
-                <div style={{ gridColumn: "span 2" }}><strong>Address:</strong> {selectedPatient.address || "None on file"}</div>
-                {selectedPatient.phone && <div><strong>Phone:</strong> {selectedPatient.phone}</div>}
-                {selectedPatient.email && <div><strong>Email:</strong> {selectedPatient.email}</div>}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: '12px',
+                  background: '#f8fafc',
+                  padding: '16px',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                }}
+              >
+                <div>
+                  <strong>Name:</strong> {selectedPatient.last_name}, {selectedPatient.first_name}
+                </div>
+                <div>
+                  <strong>Patient ID:</strong> {selectedPatient.patient_number}
+                </div>
+                <div>
+                  <strong>DOB:</strong> {selectedPatient.date_of_birth}
+                </div>
+                <div>
+                  <strong>Sex:</strong> {selectedPatient.sex || 'Not specified'}
+                </div>
+                <div style={{ gridColumn: 'span 2' }}>
+                  <strong>Address:</strong> {selectedPatient.address || 'None on file'}
+                </div>
+                {selectedPatient.phone && (
+                  <div>
+                    <strong>Phone:</strong> {selectedPatient.phone}
+                  </div>
+                )}
+                {selectedPatient.email && (
+                  <div>
+                    <strong>Email:</strong> {selectedPatient.email}
+                  </div>
+                )}
               </div>
-              <div className="modal-actions">
+              <div
+                className="modal-actions"
+                style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '16px' }}
+              >
+                <Link
+                  to={`/patients/${selectedPatient.id}`}
+                  className="btn-register"
+                  style={{ textDecoration: 'none', fontSize: '0.875rem', padding: '8px 14px' }}
+                >
+                  Full Details &rarr;
+                </Link>
+                <Link
+                  to={`/patients/${selectedPatient.id}/tests/new`}
+                  className="btn-register"
+                  style={{
+                    textDecoration: 'none',
+                    fontSize: '0.875rem',
+                    padding: '8px 14px',
+                    background: '#059669',
+                  }}
+                >
+                  + New Test Intake
+                </Link>
                 <button
                   type="button"
                   className="btn-secondary"

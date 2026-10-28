@@ -7,22 +7,61 @@ from contextlib import asynccontextmanager
 from app.models import user
 from app.routers import auth, patients, lab_tests, tests
 
-def ensure_patient_columns():
-    try:
-        with engine.connect() as conn:
-            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS first_name VARCHAR(100);"))
-            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS last_name VARCHAR(100);"))
-            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS date_of_birth DATE;"))
-            conn.execute(text("ALTER TABLE patients ADD COLUMN IF NOT EXISTS sex VARCHAR(20);"))
-            conn.commit()
-    except Exception:
-        pass
+def ensure_schema_columns():
+    user_columns = [
+        ("username", "VARCHAR(100)"),
+        ("email", "VARCHAR(255)"),
+        ("password_hash", "VARCHAR(255)"),
+        ("role", "VARCHAR(50)"),
+        ("is_locked", "BOOLEAN DEFAULT FALSE"),
+        ("failed_attempts", "INTEGER DEFAULT 0"),
+        ("failed_login_attempts", "INTEGER DEFAULT 0"),
+        ("locked_until", "TIMESTAMP WITH TIME ZONE"),
+    ]
+    patient_columns = [
+        ("name", "VARCHAR(200)"),
+        ("dob", "VARCHAR(50)"),
+        ("first_name", "VARCHAR(100)"),
+        ("last_name", "VARCHAR(100)"),
+        ("date_of_birth", "DATE"),
+        ("sex", "VARCHAR(20)"),
+        ("address", "VARCHAR(200)"),
+        ("phone", "VARCHAR(50)"),
+        ("email", "VARCHAR(255)"),
+        ("insurance_provider", "VARCHAR(200)"),
+        ("policy_number", "VARCHAR(100)"),
+    ]
+
+    with engine.connect() as conn:
+        for col_name, col_type in user_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                    conn.execute(text(f"ALTER TABLE users ADD COLUMN {col_name} {col_type};"))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+
+        for col_name, col_type in patient_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE patients ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                    conn.execute(text(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type};"))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # seed the database with demo users if it doesn't exist yet
     Base.metadata.create_all(bind=engine)
-    ensure_patient_columns()
+    ensure_schema_columns()
     seed_demo_users()
     yield
 
