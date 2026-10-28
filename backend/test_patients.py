@@ -73,20 +73,18 @@ class TestPatients(unittest.TestCase):
         app.dependency_overrides.pop(get_current_user)
         self.assertEqual(self.client.get("/patients").status_code, 401)
 
-    def test_allowed_roles_can_delete_patient(self):
-        for role in ("lab_manager", "specimen_collector"):
-            with self.subTest(role=role):
-                app.dependency_overrides[get_current_user] = lambda role=role: SimpleNamespace(role=role)
-                pid = self.client.post("/patients", json=SAMPLE).json()["id"]
-                response = self.client.delete(f"/patients/{pid}")
-                self.assertEqual(response.status_code, 204)
-                self.assertEqual(response.content, b"")
-                self.assertEqual(self.client.get(f"/patients/{pid}").status_code, 404)
-                self.assertEqual(self.client.get("/patients").json(), [])
+    def test_manager_can_delete_patient(self):
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(role="lab_manager")
+        pid = self.client.post("/patients", json=SAMPLE).json()["id"]
+        response = self.client.delete(f"/patients/{pid}")
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.content, b"")
+        self.assertEqual(self.client.get(f"/patients/{pid}").status_code, 404)
+        self.assertEqual(self.client.get("/patients").json(), [])
 
     def test_other_roles_cannot_delete_patient(self):
         pid = self.client.post("/patients", json=SAMPLE).json()["id"]
-        for role in ("lab_technician", "pathologist", "billing", "physician", "", "admin"):
+        for role in ("specimen_collector", "lab_technician", "pathologist", "billing", "physician", "", "admin"):
             with self.subTest(role=role):
                 app.dependency_overrides[get_current_user] = lambda role=role: SimpleNamespace(role=role)
                 self.assertEqual(self.client.delete(f"/patients/{pid}").status_code, 403)

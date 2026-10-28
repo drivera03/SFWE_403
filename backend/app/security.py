@@ -3,11 +3,9 @@ from typing import Any
 import jwt
 from datetime import datetime, timedelta, timezone
 from pwdlib import PasswordHash
-from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.bcrypt import BcryptHasher
+from pwdlib.hashers.argon2 import Argon2Hasher
 
-# New hashes use bcrypt (first hasher). Argon2 stays listed so accounts created
-# before the switch (seeded demo users, earlier registrations) can still log in.
 password_hash = PasswordHash((BcryptHasher(), Argon2Hasher()))
 DUMMY_HASH = password_hash.hash("not-a-real-password")
 
