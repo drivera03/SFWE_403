@@ -12,6 +12,7 @@ import PatientDetail from './pages/PatientDetail';
 import PatientEdit from './pages/PatientEdit';
 import PatientTests from './pages/PatientTests';
 import TestDetail from './pages/TestDetail';
+import UnlockUser from './pages/UnlockUser';
 import NotFound from './pages/NotFound';
 import './index.css';
 
@@ -87,6 +88,17 @@ export default function App() {
                     <Navbar />
                     <main className="main-content">
                       <ChangePassword />
+                    </main>
+                  </>
+                }
+              />
+              <Route
+                path="/unlock-accounts"
+                element={
+                  <>
+                    <Navbar />
+                    <main className="main-content">
+                      <UnlockUser />
                     </main>
                   </>
                 }
