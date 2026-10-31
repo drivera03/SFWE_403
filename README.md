@@ -33,7 +33,21 @@ cd clinical-lab-management-system
 The Compose configuration includes a placeholder `SECRET_KEY` for local testing.
 See below for generating your own secret when testing directly in a terminal.
 
-## URLs
+## Tests table migration
+
+After starting the application with `docker compose up -d`, run:
+
+```sh
+docker compose exec backend python -m app.migrate_tests
+```
+
+This creates `physicians`, `instruments`, and `tests` if absent, including the
+required `tests.patient_id` foreign key to `patients.id`. Existing rows are
+preserved, and the command can be run again safely. The `patients` and `users`
+tables must already exist. An incompatible existing `tests` table causes an
+explicit error rather than silently leaving the foreign key missing.
+
+## Application URLs
 
 * Frontend: http://localhost:5173/
 * Backend: http://localhost:8000
