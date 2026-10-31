@@ -65,6 +65,17 @@ export default function Navbar() {
             Test Intake
           </Link>
 
+          {isAuthenticated && currentUser?.role === 'lab_manager' && (
+            <Link
+              to="/unlock-accounts"
+              className="nav-link"
+              aria-current={location.pathname === '/unlock-accounts' ? 'page' : undefined}
+              style={location.pathname === '/unlock-accounts' ? { color: '#ffffff', fontWeight: 700 } : {}}
+            >
+              Unlock Accounts
+            </Link>
+          )}
+
           {/* Persona role switcher for multi-role testing */}
           {isAuthenticated && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

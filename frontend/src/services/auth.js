@@ -1,4 +1,6 @@
-const API_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000";
+import { api } from "./api";
+
+const API_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export async function getCurrentUser(token, signal) {
   const res = await fetch(`${API_URL}/auth/me`, {
@@ -47,26 +49,21 @@ export const changePassword = (currentPassword, newPassword) =>
   post("/auth/change-password", { current_password: currentPassword, new_password: newPassword }, { auth: true });
 
 export async function getLockedUsers() {
-  const res = await fetch(`${API_URL}/auth/locked-users`, {
-    headers: { Authorization: `Bearer ${(localStorage.getItem("clms_token") || localStorage.getItem("token"))}` },
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || "Failed to load locked users");
+  try {
+    const res = await api.get("/auth/locked-users");
+    return res.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.detail || "Failed to load locked users", { cause: err });
   }
-  return res.json();
 }
 
 export async function unlockUser(userId) {
-  const res = await fetch(`${API_URL}/auth/unlock/${userId}`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${(localStorage.getItem("clms_token") || localStorage.getItem("token"))}` },
-  });
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}));
-    throw new Error(data.detail || "Failed to unlock user");
+  try {
+    const res = await api.post(`/auth/unlock/${userId}`);
+    return res.data;
+  } catch (err) {
+    throw new Error(err.response?.data?.detail || "Failed to unlock user", { cause: err });
   }
-  return res.json();
 }
 
 export const signup = (email, password) => post("/auth/signup", { email, password });

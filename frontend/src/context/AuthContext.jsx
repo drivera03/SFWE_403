@@ -42,9 +42,13 @@ export function AuthProvider({ children }) {
 
     const controller = new AbortController();
     getMe(savedToken, controller.signal)
-      .then((me) => setCurrentUser(me))
+      .then((me) => {
+        if (!controller.signal.aborted) setCurrentUser(me);
+      })
       .catch((err) => {
-        if (err.name === 'AbortError') return;
+        // React StrictMode cancels the first restoration request on mount.
+        // Axios reports this as CanceledError rather than AbortError.
+        if (controller.signal.aborted || err.code === 'ERR_CANCELED') return;
         // expired or invalid token
         setCurrentUser(null);
         setToken('');
