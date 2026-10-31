@@ -1,21 +1,11 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthLayout from "../components/AuthLayout";
-import { register } from "../services/auth";
-
-// Match these values to the roles your backend accepts.
-const ROLES = [
-  { value: "lab_manager", label: "Lab Manager" },
-  { value: "specimen_collector", label: "Specimen Collector" },
-  { value: "lab_technician", label: "Lab Technician" },
-  { value: "pathologist", label: "Pathologist" },
-  { value: "billing", label: "Billing" },
-  { value: "physician", label: "Physician" },
-];
+import { signup } from "../services/auth";
 
 export default function Signup() {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ email: "", role: "lab_technician", password: "", confirm: "" });
+  const [form, setForm] = useState({ email: "", password: "", confirm: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -29,8 +19,8 @@ export default function Signup() {
 
     setLoading(true);
     try {
-      await register(form.email, form.password, form.role);
-      navigate("/login");
+      await signup(form.email, form.password);
+      navigate("/login", { replace: true, state: { accountCreated: true } });
     } catch (err) {
       setError(err.message);
     } finally {
@@ -41,7 +31,7 @@ export default function Signup() {
   return (
     <AuthLayout
       title="Create account"
-      subtitle="Set up a new CLMS user."
+      subtitle="Create your CLMS technician account."
       footer={<>Already have an account? <Link to="/login">Sign in</Link></>}
     >
       <form className="auth-form" onSubmit={handleSubmit}>
@@ -50,11 +40,6 @@ export default function Signup() {
         <label htmlFor="email">Email address</label>
         <input id="email" name="email" type="email" autoComplete="email" required
           value={form.email} onChange={update} placeholder="name@example.com" />
-
-        <label htmlFor="role">Role</label>
-        <select id="role" name="role" value={form.role} onChange={update}>
-          {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-        </select>
 
         <label htmlFor="password">Password</label>
         <input id="password" name="password" type="password" autoComplete="new-password" required

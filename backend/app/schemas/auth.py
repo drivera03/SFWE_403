@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 VALID_ROLES = {
     "lab_manager",
@@ -45,6 +45,33 @@ class RegisterRequest(BaseModel):
         if cleaned not in VALID_ROLES:
             raise ValueError(f"Invalid role '{v}'. Allowed roles are: {', '.join(sorted(VALID_ROLES))}")
         return cleaned
+
+
+class SignupRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    email: str
+    password: str = Field(min_length=8)
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, value: str) -> str:
+        cleaned = value.strip().lower()
+        local, separator, domain = cleaned.partition("@")
+        if (
+            not separator or not local or "." not in domain
+            or domain.startswith(".") or domain.endswith(".") or "@" in domain
+            or any(c.isspace() for c in cleaned)
+        ):
+            raise ValueError("Enter a valid email address")
+        return cleaned
+
+    @field_validator("password")
+    @classmethod
+    def validate_password_bytes(cls, value: str) -> str:
+        if len(value.encode("utf-8")) > 72:
+            raise ValueError("Password must be at most 72 bytes")
+        return value
 
 
 class TokenResponse(BaseModel):

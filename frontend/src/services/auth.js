@@ -24,8 +24,13 @@ async function post(path, body, { auth = false } = {}) {
   });
   const data = await res.json().catch(() => ({})); // 204 has no body, so this falls back to {}
   if (!res.ok) {
-    // FastAPI sends errors as { detail: "..." }
-    const err = new Error(typeof data.detail === "string" ? data.detail : "Something went wrong. Please try again.");
+    // FastAPI returns either a message or structured validation errors.
+    const message = typeof data.detail === "string"
+      ? data.detail
+      : Array.isArray(data.detail)
+        ? data.detail.map((item) => item.msg).join(" ")
+        : "Something went wrong. Please try again.";
+    const err = new Error(message);
     err.status = res.status;
     err.retryAfter = Number(res.headers.get("Retry-After")) || null;
     throw err;
@@ -63,3 +68,5 @@ export async function unlockUser(userId) {
   }
   return res.json();
 }
+
+export const signup = (email, password) => post("/auth/signup", { email, password });

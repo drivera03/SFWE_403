@@ -58,6 +58,14 @@ explicit error rather than silently leaving the foreign key missing.
 
 
 
+## Create an account
+
+Choose **Create account** in the main navigation or on the sign-in page.
+Sign up with your email and a password of at least 8 characters (at most 72 UTF-8
+bytes), then sign in with those credentials. Public signup creates a technician
+account. Other roles are assigned through the existing lab manager registration
+endpoint, `POST /auth/register`; public signup uses `POST /auth/signup`.
+
 ## Common Docker commands (All in the terminal)
 
 

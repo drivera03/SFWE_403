@@ -35,7 +35,7 @@ export default function Login() {
   return (
     <AuthLayout
       title="Sign in"
-      subtitle="Use the account your Lab Manager created for you."
+      subtitle="Sign in with your CLMS account."
       footer={
         <>
           Need an account? <Link to="/signup">Create one</Link>
@@ -45,6 +45,7 @@ export default function Login() {
       }
     >
       <form className="auth-form" onSubmit={handleSubmit}>
+        {location.state?.accountCreated && <div className="auth-success" role="status">Account created. Sign in with your email and password.</div>}
         {error && <div className="auth-error" role="alert">{error}</div>}
 
         <label htmlFor="email">Email address</label>
