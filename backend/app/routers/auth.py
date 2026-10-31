@@ -13,6 +13,7 @@ from app.schemas.auth import (
     LoginRequest,
     TokenResponse,
     RegisterRequest,
+    SignupRequest,
     UserResponse,
     UnlockResponse,
     ChangePasswordRequest,
@@ -151,6 +152,19 @@ def register(
     Restricted to lab_manager only.
     Password is saved hashed with bcrypt and never logged or returned.
     """
+    return create_user(body, db, actor_id=current_user.id)
+
+
+@router.post("/signup", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+def signup(body: SignupRequest, db: Session = Depends(get_db)):
+    """Allow self-registration with a fixed technician role."""
+    return create_user(
+        RegisterRequest(username=body.email, email=body.email, password=body.password, role="technician"),
+        db,
+    )
+
+
+def create_user(body: RegisterRequest, db: Session, actor_id: int | None = None):
     username = body.username or (body.email.split("@")[0] if body.email else None)
     email = body.email or (f"{username}@clms.local" if username else None)
 
@@ -214,7 +228,7 @@ def register(
     log_activity(
         db=db,
         action="user_registered",
-        user_id=current_user.id,
+        user_id=actor_id if actor_id is not None else new_user.id,
         resource_type="user",
         resource_id=str(new_user.id),
         details={"username": new_user.username, "email": new_user.email, "role": new_user.role},
