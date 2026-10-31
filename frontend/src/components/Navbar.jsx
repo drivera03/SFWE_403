@@ -131,13 +131,16 @@ export default function Navbar() {
               </button>
             </div>
           ) : (
-            <Link
-              to="/login"
-              className="btn btn-red"
-              style={{ border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}
-            >
-              Sign in
-            </Link>
+            <>
+              <Link to="/signup" className="nav-link">Create account</Link>
+              <Link
+                to="/login"
+                className="btn btn-red"
+                style={{ border: 'none', cursor: 'pointer', fontSize: '0.875rem' }}
+              >
+                Sign in
+              </Link>
+            </>
           )}
         </div>
       </div>
