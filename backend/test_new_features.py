@@ -1,6 +1,6 @@
 import os
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 TEST_DB_FILE = "/tmp/test_new_features.db" if os.path.exists("/tmp") else "test_new_features.db"
 os.environ["SECRET_KEY"] = "test-secret-key-for-unit-testing-32charsmin"
@@ -226,6 +226,37 @@ class TestNewFeatures(unittest.TestCase):
     # ============================================================
     # Ticket SXFT5-35: POST /auth/unlock/{user_id} endpoint (Lab Manager only)
     # ============================================================
+    def test_list_locked_users_and_unlock(self):
+        headers = {"Authorization": f"Bearer {self.manager_token}"}
+        response = self.client.get("/auth/locked-users", headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([user["id"] for user in response.json()], [4])
+        self.assertEqual(response.json()[0]["email"], "locked@clms.local")
+        self.assertNotIn("password_hash", response.json()[0])
+
+        response = self.client.post("/auth/unlock/4", headers=headers)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(self.client.get("/auth/locked-users", headers=headers).json(), [])
+
+    def test_list_locked_users_respects_lock_expiration(self):
+        self.tech.locked_until = datetime.now(timezone.utc) + timedelta(minutes=10)
+        self.locked_user.locked_until = datetime.now(timezone.utc) - timedelta(minutes=10)
+        self.db.commit()
+        response = self.client.get(
+            "/auth/locked-users",
+            headers={"Authorization": f"Bearer {self.manager_token}"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([user["id"] for user in response.json()], [3])
+
+    def test_list_locked_users_requires_manager(self):
+        self.assertEqual(self.client.get("/auth/locked-users").status_code, 401)
+        for token in (self.collector_token, self.tech_token):
+            response = self.client.get(
+                "/auth/locked-users", headers={"Authorization": f"Bearer {token}"}
+            )
+            self.assertEqual(response.status_code, 403)
+
     def test_unlock_user_success_lab_manager(self):
         res = self.client.post(
             "/auth/unlock/4",

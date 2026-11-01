@@ -238,6 +238,21 @@ def create_user(body: RegisterRequest, db: Session, actor_id: int | None = None)
     return new_user
 
 
+@router.get("/locked-users", response_model=list[UserResponse])
+def get_locked_users(
+    current_user: User = Depends(require_role("lab_manager")),
+    db: Session = Depends(get_db),
+):
+    """List currently locked accounts for the Lab Manager's unlock dropdown."""
+    current_time = now_utc()
+    return db.query(User).filter(
+        or_(
+            (User.is_locked.is_(True) & User.locked_until.is_(None)),
+            User.locked_until > current_time,
+        )
+    ).order_by(User.email, User.id).all()
+
+
 @router.post("/unlock/{user_id}", response_model=UnlockResponse)
 def unlock_user(
     user_id: int,
