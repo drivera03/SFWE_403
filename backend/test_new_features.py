@@ -14,7 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from app.database import Base, get_db
 from app.models.user import User
 from app.models.patient import Patient
-from app.models.lab_test import LabTest
+from app.models.tests import Test, Physician, SampleType, ResultStatus
 from app.models.activity_log import ActivityLog
 from app.security import create_access_token, password_hash, verify_password
 from app.routers import auth, patients
@@ -113,11 +113,20 @@ class TestNewFeatures(unittest.TestCase):
         self.db.commit()
 
         # Seed linked test for patient 101
-        self.test_order = LabTest(
+        self.physician = Physician(id=1, name="Dr. Gregory House")
+        self.db.add(self.physician)
+        self.db.commit()
+        self.test_order = Test(
             id=201,
             patient_id=101,
+            physician_id=1,
+            report_id="RPT-201",
+            sample_id="SMP-201",
+            sample_type=SampleType.BLOOD,
+            collection_datetime=datetime.now(timezone.utc),
+            collected_by_id=2,
             test_name="Comprehensive Metabolic Panel",
-            status="pending",
+            status=ResultStatus.PENDING,
         )
         self.db.add(self.test_order)
         self.db.commit()

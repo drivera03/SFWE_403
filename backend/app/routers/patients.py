@@ -8,7 +8,7 @@ from app.database import get_db
 from app.dependencies import get_current_user, require_role
 from app.models.user import User
 from app.models.patient import Patient
-from app.models.lab_test import LabTest
+from app.models.tests import Test
 from app.schemas.patient import PatientCreate, PatientUpdate, PatientResponse
 from app.activity_logger import log_activity
 
@@ -122,7 +122,7 @@ def delete_patient(
     patient = get_patient_or_404(patient_id, db)
 
     # Check for linked tests - block deletion if tests exist
-    linked_tests_count = db.query(LabTest).filter(LabTest.patient_id == patient_id).count()
+    linked_tests_count = db.query(Test).filter(Test.patient_id == patient_id).count()
     if linked_tests_count > 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

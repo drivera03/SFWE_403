@@ -1,44 +1,28 @@
 import { api } from './api';
 
-// Lab Test endpoints (scoped to patient)
+// All tests live in one table behind one API: /tests
 export const getPatientTests = async (patientId) => {
-  const res = await api.get(`/patients/${patientId}/tests`);
-  return res.data;
-};
-
-export const getLabTest = async (patientId, testId) => {
-  const res = await api.get(`/patients/${patientId}/tests/${testId}`);
-  return res.data;
-};
-
-export const createLabTest = async (patientId, testData) => {
-  const res = await api.post(`/patients/${patientId}/tests`, testData);
-  return res.data;
-};
-
-export const updateLabTest = async (patientId, testId, testData) => {
-  const res = await api.put(`/patients/${patientId}/tests/${testId}`, testData);
-  return res.data;
-};
-
-export const deleteLabTest = async (patientId, testId) => {
-  const res = await api.delete(`/patients/${patientId}/tests/${testId}`);
-  return res.data;
-};
-
-// Test Intake endpoints (Core /tests API)
-export const createTestIntake = async (testData) => {
-  const res = await api.post('/tests', testData);
-  return res.data;
-};
-
-export const getIntakeTests = async (patientId) => {
   const res = await api.get('/tests', { params: { patient_id: patientId } });
   return res.data;
 };
 
-export const getIntakeTestById = async (testId) => {
+export const getTest = async (testId) => {
   const res = await api.get(`/tests/${testId}`);
+  return res.data;
+};
+
+export const createTest = async (testData) => {
+  const res = await api.post('/tests', testData);
+  return res.data;
+};
+
+export const updateTest = async (testId, testData) => {
+  const res = await api.put(`/tests/${testId}`, testData);
+  return res.data;
+};
+
+export const deleteTest = async (testId) => {
+  const res = await api.delete(`/tests/${testId}`);
   return res.data;
 };
 
@@ -82,3 +66,18 @@ export const getInstruments = async () => {
   ];
 };
 
+// e.g. makeAccessionId('SMP') -> "SMP-481902"
+export const makeAccessionId = (prefix) => `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
+
+// Turns an axios error into readable text. FastAPI sends `detail` as a string,
+// or as a list of {msg} objects for validation (422) errors.
+export const apiErrorMessage = (err, fallback = 'Something went wrong.') => {
+  const detail = err?.response?.data?.detail;
+  if (typeof detail === 'string') return detail;
+  if (Array.isArray(detail)) {
+    return detail
+      .map((d) => `${(d.loc || []).slice(1).join('.') || 'request'}: ${d.msg}`)
+      .join('; ');
+  }
+  return err?.message || fallback;
+};

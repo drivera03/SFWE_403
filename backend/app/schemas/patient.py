@@ -1,14 +1,21 @@
 from datetime import date, datetime
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.models.tests import ResultStatus, SampleType
 
-class LabTestResponse(BaseModel):
+
+class PatientTestSummary(BaseModel):
+    """Compact view of a test, embedded in the patient response."""
+
     model_config = ConfigDict(from_attributes=True)
 
     id: int
     test_name: str
-    status: str
-    created_at: datetime
+    status: ResultStatus
+    report_id: str
+    sample_type: SampleType
+    report_datetime: datetime | None = None
+    collection_datetime: datetime
 
 
 class PatientCreate(BaseModel):
@@ -81,7 +88,7 @@ class PatientResponse(BaseModel):
     policy_number: str | None = None
     created_at: datetime
     updated_at: datetime
-    tests: list[LabTestResponse] = []
+    tests: list[PatientTestSummary] = []
 
     @model_validator(mode="after")
     def fill_computed(self):

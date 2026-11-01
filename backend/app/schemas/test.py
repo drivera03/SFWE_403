@@ -25,6 +25,24 @@ class TestCreate(BaseModel):
     notes: str | None = None
 
 
+class PhysicianResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+
+
+class PhysicianCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+
+
+class InstrumentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+
+
 class TestResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,21 +69,15 @@ class TestResponse(BaseModel):
     insurance_provider: str | None = None
     insurance_policy_number: str | None = None
     notes: str | None = None
+    physician: PhysicianResponse | None = None
+    instrument: InstrumentResponse | None = None
 
 
-class PhysicianResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
+class TestUpdate(BaseModel):
+    """Body for PUT /tests/{id}. Only the fields that are sent get changed."""
 
-    id: int
-    name: str
-
-
-class PhysicianCreate(BaseModel):
-    name: str = Field(min_length=1, max_length=200)
-
-
-class InstrumentResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: int
-    name: str
+    test_name: str | None = Field(default=None, min_length=1, max_length=200)
+    status: ResultStatus | None = None
+    result_numeric: float | None = None
+    result_text: str | None = Field(default=None, max_length=200)
+    notes: str | None = None

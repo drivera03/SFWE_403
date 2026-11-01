@@ -339,7 +339,7 @@ export default function PatientDetail() {
                   <th>Test ID</th>
                   <th>Test Name</th>
                   <th>Status</th>
-                  <th>Order Date</th>
+                  <th>Collected</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
               </thead>
@@ -357,7 +357,7 @@ export default function PatientDetail() {
                         {test.status}
                       </span>
                     </td>
-                    <td>{new Date(test.created_at).toLocaleDateString()}</td>
+                    <td>{new Date(test.collection_datetime).toLocaleDateString()}</td>
                     <td style={{ textAlign: 'right' }}>
                       <Link to={`/patients/${patient.id}/tests/${test.id}`} className="btn btn-secondary btn-sm">
                         View Details →

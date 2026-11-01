@@ -1,6 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session, selectinload
+
+from app.activity_logger import log_activity
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models.patient import Patient
@@ -12,6 +15,7 @@ from app.schemas.test import (
     PhysicianResponse,
     TestCreate,
     TestResponse,
+    TestUpdate,
 )
 
 # Every test route requires a logged-in user.
@@ -24,6 +28,16 @@ router = APIRouter(
 
 def not_found(detail: str) -> HTTPException:
     return HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=detail)
+
+
+def load_test(db: Session, test_id: int) -> Test | None:
+    """Fetch one test with its physician and instrument loaded."""
+    return (
+        db.query(Test)
+        .options(selectinload(Test.physician), selectinload(Test.instrument))
+        .filter(Test.id == test_id)
+        .first()
+    )
 
 
 @router.post("", response_model=TestResponse, status_code=status.HTTP_201_CREATED)
@@ -53,6 +67,15 @@ def create_test(
     db.add(test)
     db.commit()
     db.refresh(test)
+
+    log_activity(
+        db=db,
+        action="test_created",
+        user_id=current_user.id,
+        resource_type="test",
+        resource_id=str(test.id),
+        details={"test_name": test.test_name, "patient_id": test.patient_id},
+    )
     return test
 
 
@@ -64,6 +87,7 @@ def list_tests_for_patient(patient_id: int = Query(...), db: Session = Depends(g
 
     return (
         db.query(Test)
+        .options(selectinload(Test.physician), selectinload(Test.instrument))
         .filter(Test.patient_id == patient_id)
         .order_by(Test.collection_datetime.desc(), Test.id.desc())
         .all()
@@ -98,7 +122,81 @@ def list_instruments(db: Session = Depends(get_db)):
 @router.get("/{test_id}", response_model=TestResponse)
 def get_test(test_id: int, db: Session = Depends(get_db)):
     """Get one test by ID."""
-    test = db.get(Test, test_id)
+    test = load_test(db, test_id)
     if test is None:
         raise not_found(f"Test with ID {test_id} not found")
     return test
+
+
+@router.put("/{test_id}", response_model=TestResponse)
+def update_test(
+    test_id: int,
+    body: TestUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update a test: rename it, change its status, or record results/notes."""
+    test = load_test(db, test_id)
+    if test is None:
+        raise not_found(f"Test with ID {test_id} not found")
+
+    changes = body.model_dump(exclude_unset=True)
+    # test_name and status are required columns, so an explicit null means "leave it alone"
+    for required in ("test_name", "status"):
+        if changes.get(required) is None:
+            changes.pop(required, None)
+
+    for field, value in changes.items():
+        setattr(test, field, value)
+
+    # The DB only allows a non-pending status once a result exists; give a clear error instead of a 500.
+    if test.status != ResultStatus.PENDING and test.result_numeric is None and test.result_text is None:
+        requested_status = test.status.value  # read before rollback resets the object
+        db.rollback()
+        raise HTTPException(
+            status_code=422,
+            detail=f"A result (numeric or text) is required to set status to '{requested_status}'",
+        )
+
+    if ("result_numeric" in changes or "result_text" in changes) and test.results_received_datetime is None:
+        test.results_received_datetime = datetime.now(timezone.utc)
+        test.performed_by_id = current_user.id
+
+    db.commit()
+    db.refresh(test)
+
+    log_activity(
+        db=db,
+        action="test_updated",
+        user_id=current_user.id,
+        resource_type="test",
+        resource_id=str(test.id),
+        details={"updated_fields": list(changes.keys())},
+    )
+    return test
+
+
+@router.delete("/{test_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_test(
+    test_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a test."""
+    test = db.get(Test, test_id)
+    if test is None:
+        raise not_found(f"Test with ID {test_id} not found")
+
+    test_name, patient_id = test.test_name, test.patient_id
+    db.delete(test)
+    db.commit()
+
+    log_activity(
+        db=db,
+        action="test_deleted",
+        user_id=current_user.id,
+        resource_type="test",
+        resource_id=str(test_id),
+        details={"test_name": test_name, "patient_id": patient_id},
+    )
+    return None

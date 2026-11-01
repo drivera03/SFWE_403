@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getPatient } from '../services/api';
-import { getLabTest, updateLabTest, deleteLabTest } from '../services/tests';
+import { getTest, updateTest, deleteTest, apiErrorMessage } from '../services/tests';
 
 export default function TestDetail() {
   const params = useParams();
@@ -18,6 +18,8 @@ export default function TestDetail() {
 
   // Status update state
   const [currentStatus, setCurrentStatus] = useState('');
+  const [resultNumeric, setResultNumeric] = useState('');
+  const [resultText, setResultText] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [statusSuccess, setStatusSuccess] = useState('');
   const [updateError, setUpdateError] = useState('');
@@ -36,20 +38,28 @@ export default function TestDetail() {
 
         const [patientData, testData] = await Promise.all([
           getPatient(patientId),
-          getLabTest(patientId, testId),
+          getTest(testId),
         ]);
 
-        if (!ignore) {
-          setPatient(patientData);
-          setTest(testData);
-          setCurrentStatus(testData.status);
+        if (ignore) return;
+
+        // /patients/:id/tests/:testId must point at one of that patient's tests
+        if (String(testData.patient_id) !== String(patientId)) {
+          setIsNotFound(true);
+          return;
         }
+
+        setPatient(patientData);
+        setTest(testData);
+        setCurrentStatus(testData.status);
+        setResultNumeric(testData.result_numeric ?? '');
+        setResultText(testData.result_text ?? '');
       } catch (err) {
         if (!ignore) {
           if (err.response?.status === 404) {
             setIsNotFound(true);
           } else {
-            setFetchError(err.response?.data?.detail || err.message || 'Failed to load lab test.');
+            setFetchError(apiErrorMessage(err, 'Failed to load lab test.'));
           }
         }
       } finally {
@@ -66,19 +76,24 @@ export default function TestDetail() {
 
   const handleStatusUpdate = async (e) => {
     e.preventDefault();
-    if (currentStatus === test?.status) return;
+    if (!isDirty) return;
 
     try {
       setIsUpdating(true);
       setUpdateError('');
-      const updated = await updateLabTest(patientId, testId, {
-        status: currentStatus,
-      });
+      const body = { status: currentStatus };
+      if (resultNumeric !== '') body.result_numeric = parseFloat(resultNumeric);
+      if (resultText.trim() !== '') body.result_text = resultText.trim();
+
+      const updated = await updateTest(testId, body);
       setTest(updated);
-      setStatusSuccess(`Status successfully changed to "${updated.status}".`);
+      setCurrentStatus(updated.status);
+      setResultNumeric(updated.result_numeric ?? '');
+      setResultText(updated.result_text ?? '');
+      setStatusSuccess(`Test updated. Status is now "${updated.status}".`);
       setTimeout(() => setStatusSuccess(''), 4000);
     } catch (err) {
-      setUpdateError(err.response?.data?.detail || err.message || 'Failed to update test status.');
+      setUpdateError(apiErrorMessage(err, 'Failed to update test.'));
     } finally {
       setIsUpdating(false);
     }
@@ -88,11 +103,11 @@ export default function TestDetail() {
     try {
       setIsDeleting(true);
       setDeleteError('');
-      await deleteLabTest(patientId, testId);
+      await deleteTest(testId);
       setShowDeleteModal(false);
       navigate(`/patients/${patientId}/tests`);
     } catch (err) {
-      setDeleteError(err.response?.data?.detail || err.message || 'Failed to delete lab test.');
+      setDeleteError(apiErrorMessage(err, 'Failed to delete lab test.'));
     } finally {
       setIsDeleting(false);
     }
@@ -101,7 +116,7 @@ export default function TestDetail() {
   const getStatusClass = (status) => {
     const s = (status || '').toLowerCase().replace('-', '_');
     if (s === 'completed') return 'status-completed';
-    if (s === 'in_progress') return 'status-in_progress';
+    if (s === 'validated') return 'status-validated';
     if (s === 'pending') return 'status-pending';
     return 'status-pending';
   };
@@ -171,6 +186,21 @@ export default function TestDetail() {
   const patientDisplayName =
     patient?.name || `${patient?.first_name || ''} ${patient?.last_name || ''}`.trim() || `Patient #${patientId}`;
 
+  const isDirty =
+    currentStatus !== test.status ||
+    String(resultNumeric) !== String(test.result_numeric ?? '') ||
+    resultText !== (test.result_text ?? '');
+
+  const orderedAt = test.report_datetime || test.collection_datetime;
+  const rangeText =
+    test.reference_range_low != null && test.reference_range_high != null
+      ? `${test.reference_range_low} – ${test.reference_range_high}${test.units ? ` ${test.units}` : ''}`
+      : test.reference_range_text || '—';
+  const resultDisplay =
+    test.result_numeric != null
+      ? `${test.result_numeric}${test.units ? ` ${test.units}` : ''}`
+      : test.result_text || 'No result recorded yet';
+
   return (
     <div className="page-container">
       {/* Breadcrumb Navigation */}
@@ -224,7 +254,7 @@ export default function TestDetail() {
               </span>
             </div>
             <p className="patient-sub-meta">
-              Patient: <Link to={`/patients/${patientId}`} style={{ color: 'var(--primary)', fontWeight: '600' }}>{patientDisplayName}</Link> • Ordered: {new Date(test.created_at).toLocaleString()}
+              Patient: <Link to={`/patients/${patientId}`} style={{ color: 'var(--primary)', fontWeight: '600' }}>{patientDisplayName}</Link> • Ordered: {new Date(orderedAt).toLocaleString()}
             </p>
           </div>
         </div>
@@ -292,12 +322,56 @@ export default function TestDetail() {
             <div className="info-item">
               <span className="info-label">Date & Time Ordered</span>
               <span className="info-value">
-                {new Date(test.created_at).toLocaleString('en-US', {
+                {new Date(orderedAt).toLocaleString('en-US', {
                   dateStyle: 'full',
                   timeStyle: 'medium',
                 })}
               </span>
             </div>
+
+            <div className="info-item">
+              <span className="info-label">Report ID</span>
+              <span className="info-value"><code className="policy-code">{test.report_id}</code></span>
+            </div>
+
+            <div className="info-item">
+              <span className="info-label">Sample</span>
+              <span className="info-value">
+                {test.sample_type} • <code className="policy-code">{test.sample_id}</code>
+              </span>
+            </div>
+
+            <div className="info-item">
+              <span className="info-label">Collected</span>
+              <span className="info-value">{new Date(test.collection_datetime).toLocaleString()}</span>
+            </div>
+
+            <div className="info-item">
+              <span className="info-label">Ordering Physician</span>
+              <span className="info-value">{test.physician?.name || `Physician #${test.physician_id}`}</span>
+            </div>
+
+            <div className="info-item">
+              <span className="info-label">Instrument</span>
+              <span className="info-value">{test.instrument?.name || 'General bench / manual'}</span>
+            </div>
+
+            <div className="info-item">
+              <span className="info-label">Reference Range</span>
+              <span className="info-value">{rangeText}</span>
+            </div>
+
+            <div className="info-item">
+              <span className="info-label">Result</span>
+              <span className="info-value">{resultDisplay}</span>
+            </div>
+
+            {test.notes && (
+              <div className="info-item">
+                <span className="info-label">Notes</span>
+                <span className="info-value">{test.notes}</span>
+              </div>
+            )}
           </div>
         </section>
 
@@ -363,7 +437,7 @@ export default function TestDetail() {
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
           </span>
-          <h2 className="card-title">Manage Test Status</h2>
+          <h2 className="card-title">Status &amp; Results</h2>
         </div>
 
         {updateError && (
@@ -389,16 +463,43 @@ export default function TestDetail() {
               onChange={(e) => setCurrentStatus(e.target.value)}
             >
               <option value="pending">Pending</option>
-              <option value="in_progress">In Progress</option>
               <option value="completed">Completed</option>
-              <option value="cancelled">Cancelled</option>
+              <option value="validated">Validated</option>
             </select>
+          </div>
+
+          <div style={{ flex: '1', minWidth: '160px', maxWidth: '220px' }}>
+            <label className="form-label" htmlFor="result-numeric-input">
+              Numeric Result{test.units ? ` (${test.units})` : ''}
+            </label>
+            <input
+              id="result-numeric-input"
+              type="number"
+              step="any"
+              className="form-input"
+              value={resultNumeric}
+              onChange={(e) => setResultNumeric(e.target.value)}
+            />
+          </div>
+
+          <div style={{ flex: '1', minWidth: '200px', maxWidth: '300px' }}>
+            <label className="form-label" htmlFor="result-text-input">
+              Text Result
+            </label>
+            <input
+              id="result-text-input"
+              type="text"
+              className="form-input"
+              placeholder="e.g. Negative"
+              value={resultText}
+              onChange={(e) => setResultText(e.target.value)}
+            />
           </div>
 
           <button
             type="submit"
             className="btn btn-primary"
-            disabled={isUpdating || currentStatus === test.status}
+            disabled={isUpdating || !isDirty}
             id="save-status-btn"
           >
             {isUpdating ? (
@@ -406,7 +507,7 @@ export default function TestDetail() {
                 <span className="spinner-sm" /> Saving...
               </span>
             ) : (
-              'Save Status'
+              'Save Changes'
             )}
           </button>
         </form>
