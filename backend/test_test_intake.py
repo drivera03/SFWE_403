@@ -15,6 +15,7 @@ from app.main import app
 from app import models  # noqa: F401
 from app.models.patient import Patient
 from app.models.tests import Physician
+from app.models.activity_log import ActivityLog
 
 engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
 TestingSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -150,6 +151,87 @@ class TestTestIntake(unittest.TestCase):
     def test_list_tests_requires_patient_id(self):
         r = self.client.get("/tests")
         self.assertEqual(r.status_code, 422)
+
+    # Intake tests must show up on the patient (single source of truth)
+    def test_created_test_appears_on_patient_record(self):
+        tid = self.client.post("/tests", json=self.make_test()).json()["id"]
+        r = self.client.get(f"/patients/{self.patient_id}")
+        self.assertEqual(r.status_code, 200)
+        tests = r.json()["tests"]
+        self.assertEqual([t["id"] for t in tests], [tid])
+        self.assertEqual(tests[0]["test_name"], "Lipid Panel")
+        self.assertEqual(tests[0]["status"], "pending")
+
+    def as_manager(self):
+        # Deleting a patient is a lab_manager-only action.
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, role="lab_manager")
+
+    def test_patient_delete_blocked_by_intake_test(self):
+        self.client.post("/tests", json=self.make_test())
+        self.as_manager()
+        r = self.client.delete(f"/patients/{self.patient_id}")
+        self.assertEqual(r.status_code, 400)
+
+    def test_get_test_includes_physician_name(self):
+        tid = self.client.post("/tests", json=self.make_test()).json()["id"]
+        r = self.client.get(f"/tests/{tid}")
+        self.assertEqual(r.json()["physician"]["name"], "Dr. Gregory House")
+
+    # PUT /tests/{id}
+    def test_update_test_name_and_notes(self):
+        tid = self.client.post("/tests", json=self.make_test()).json()["id"]
+        r = self.client.put(f"/tests/{tid}", json={"test_name": "Lipid Panel (fasting)", "notes": "fasted 12h"})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["test_name"], "Lipid Panel (fasting)")
+        self.assertEqual(r.json()["notes"], "fasted 12h")
+
+    def test_update_status_requires_result(self):
+        tid = self.client.post("/tests", json=self.make_test()).json()["id"]
+        r = self.client.put(f"/tests/{tid}", json={"status": "completed"})
+        self.assertEqual(r.status_code, 422)
+        self.assertIn("'completed'", r.json()["detail"])
+        # nothing was changed
+        self.assertEqual(self.client.get(f"/tests/{tid}").json()["status"], "pending")
+
+    def test_complete_test_with_result(self):
+        tid = self.client.post("/tests", json=self.make_test()).json()["id"]
+        r = self.client.put(f"/tests/{tid}", json={"status": "completed", "result_numeric": 185.5})
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        self.assertEqual(data["status"], "completed")
+        self.assertEqual(data["result_numeric"], 185.5)
+        self.assertIsNotNone(data["results_received_datetime"])
+        self.assertEqual(data["performed_by_id"], 1)
+
+    def test_update_rejects_unknown_status(self):
+        tid = self.client.post("/tests", json=self.make_test()).json()["id"]
+        r = self.client.put(f"/tests/{tid}", json={"status": "in_progress"})
+        self.assertEqual(r.status_code, 422)
+
+    def test_update_test_not_found(self):
+        self.assertEqual(self.client.put("/tests/999", json={"notes": "x"}).status_code, 404)
+
+    # DELETE /tests/{id}
+    def test_delete_test_then_patient_can_be_deleted(self):
+        tid = self.client.post("/tests", json=self.make_test()).json()["id"]
+        self.assertEqual(self.client.delete(f"/tests/{tid}").status_code, 204)
+        self.assertEqual(self.client.get(f"/tests/{tid}").status_code, 404)
+        self.assertEqual(self.client.get(f"/patients/{self.patient_id}").json()["tests"], [])
+        self.as_manager()
+        self.assertEqual(self.client.delete(f"/patients/{self.patient_id}").status_code, 204)
+
+    def test_delete_test_not_found(self):
+        self.assertEqual(self.client.delete("/tests/999").status_code, 404)
+
+    # Activity log
+    def test_create_update_delete_are_logged(self):
+        tid = self.client.post("/tests", json=self.make_test()).json()["id"]
+        self.client.put(f"/tests/{tid}", json={"notes": "x"})
+        self.client.delete(f"/tests/{tid}")
+        db = TestingSession()
+        actions = [a.action for a in db.query(ActivityLog).order_by(ActivityLog.id).all()]
+        db.close()
+        self.assertEqual(actions, ["test_created", "test_updated", "test_deleted"])
 
     def test_requires_login(self):
         app.dependency_overrides.pop(get_current_user)

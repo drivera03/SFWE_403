@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import { useParams, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { getPatients, getPatient } from '../services/api';
 import {
-  createTestIntake,
+  createTest,
   getPhysicians,
   getInstruments,
   createPhysician,
+  makeAccessionId,
+  apiErrorMessage,
 } from '../services/tests';
 import Navbar from '../components/Navbar';
 import '../styles/landing.css';
@@ -107,8 +109,8 @@ export default function TestIntake() {
   // Form Fields
   const [formData, setFormData] = useState(() => ({
     patient_id: initialPatientId,
-    report_id: `RPT-${Math.floor(100000 + Math.random() * 900000)}`,
-    sample_id: `SMP-${Math.floor(100000 + Math.random() * 900000)}`,
+    report_id: makeAccessionId('RPT'),
+    sample_id: makeAccessionId('SMP'),
     sample_type: 'blood',
     collection_datetime: new Date().toISOString().slice(0, 16),
     test_name: '',
@@ -241,13 +243,11 @@ export default function TestIntake() {
 
   // Quick ID generator helpers
   const regenerateSampleId = () => {
-    const code = `SMP-${Math.floor(100000 + Math.random() * 900000)}`;
-    setFormData((prev) => ({ ...prev, sample_id: code }));
+    setFormData((prev) => ({ ...prev, sample_id: makeAccessionId('SMP') }));
   };
 
   const regenerateReportId = () => {
-    const code = `RPT-${Math.floor(100000 + Math.random() * 900000)}`;
-    setFormData((prev) => ({ ...prev, report_id: code }));
+    setFormData((prev) => ({ ...prev, report_id: makeAccessionId('RPT') }));
   };
 
   // Add Physician modal submission
@@ -259,13 +259,13 @@ export default function TestIntake() {
     setPhysicianModalError('');
 
     try {
-      const created = await createPhysician({ name: newPhysicianName.trim() });
+      const created = await createPhysician(newPhysicianName.trim());
       setPhysiciansList((prev) => [...prev, created]);
       setFormData((prev) => ({ ...prev, physician_id: String(created.id) }));
       setNewPhysicianName('');
       setShowAddPhysicianModal(false);
     } catch (err) {
-      setPhysicianModalError(err.message || 'Failed to add physician');
+      setPhysicianModalError(apiErrorMessage(err, 'Failed to add physician'));
     } finally {
       setAddingPhysician(false);
     }
@@ -277,6 +277,7 @@ export default function TestIntake() {
     if (!formData.patient_id) errors.patient_id = 'Patient selection is required.';
     if (!formData.sample_id.trim()) errors.sample_id = 'Sample Barcode / Specimen ID is required.';
     if (!formData.test_name.trim()) errors.test_name = 'Test or Panel Name is required.';
+    if (!formData.physician_id) errors.physician_id = 'Ordering physician is required.';
     if (!formData.collection_datetime) errors.collection_datetime = 'Collection timestamp is required.';
 
     if (formData.reference_range_low && isNaN(Number(formData.reference_range_low))) {
@@ -312,12 +313,12 @@ export default function TestIntake() {
     try {
       const payload = {
         patient_id: parseInt(formData.patient_id, 10),
-        report_id: formData.report_id.trim() || undefined,
+        report_id: formData.report_id.trim() || makeAccessionId('RPT'),
         sample_id: formData.sample_id.trim(),
         sample_type: formData.sample_type,
         collection_datetime: new Date(formData.collection_datetime).toISOString(),
         test_name: formData.test_name.trim(),
-        physician_id: formData.physician_id ? parseInt(formData.physician_id, 10) : undefined,
+        physician_id: parseInt(formData.physician_id, 10),
         instrument_id: formData.instrument_id ? parseInt(formData.instrument_id, 10) : undefined,
         units: formData.units.trim() || undefined,
         reference_range_low: formData.reference_range_low !== '' ? parseFloat(formData.reference_range_low) : undefined,
@@ -328,11 +329,11 @@ export default function TestIntake() {
         notes: formData.notes.trim() || undefined,
       };
 
-      const result = await createTestIntake(payload);
+      const result = await createTest(payload);
       setSuccessData(result);
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {
-      setErrorBanner(err.message || 'Failed to complete test intake order. Please verify input fields.');
+      setErrorBanner(apiErrorMessage(err, 'Failed to complete test intake order. Please verify input fields.'));
     } finally {
       setSubmitting(false);
     }
@@ -432,8 +433,8 @@ export default function TestIntake() {
                   setSuccessData(null);
                   setFormData((prev) => ({
                     ...prev,
-                    report_id: `RPT-${Math.floor(100000 + Math.random() * 900000)}`,
-                    sample_id: `SMP-${Math.floor(100000 + Math.random() * 900000)}`,
+                    report_id: makeAccessionId('RPT'),
+                    sample_id: makeAccessionId('SMP'),
                     test_name: '',
                   }));
                 }}
@@ -705,7 +706,7 @@ export default function TestIntake() {
               <div className="form-row">
                 <div className="form-group">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label htmlFor="physician_id">Ordering Physician</label>
+                    <label htmlFor="physician_id">Ordering Physician *</label>
                     <button
                       type="button"
                       onClick={() => setShowAddPhysicianModal(true)}
@@ -727,14 +728,20 @@ export default function TestIntake() {
                     name="physician_id"
                     value={formData.physician_id}
                     onChange={handleInputChange}
+                    required
                   >
-                    <option value="">-- No specific doctor assigned --</option>
+                    <option value="">-- Select ordering physician --</option>
                     {physiciansList.map((doc) => (
                       <option key={doc.id} value={doc.id}>
                         {doc.name}
                       </option>
                     ))}
                   </select>
+                  {fieldErrors.physician_id && (
+                    <span style={{ color: '#b91c1c', fontSize: '0.8rem', marginTop: '4px' }}>
+                      {fieldErrors.physician_id}
+                    </span>
+                  )}
                 </div>
 
                 <div className="form-group">

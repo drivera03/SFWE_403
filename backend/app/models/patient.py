@@ -34,7 +34,11 @@ class Patient(Base):
     )
 
     # Relationships
-    tests: Mapped[List["LabTest"]] = relationship("LabTest", back_populates="patient")
+    tests: Mapped[List["Test"]] = relationship(
+    "Test",
+    back_populates="patient",
+    order_by="[Test.collection_datetime.desc(), Test.id.desc()]",
+)
 
     def __init__(self, **kwargs):
         # Auto-sync name <-> first_name/last_name and dob <-> date_of_birth

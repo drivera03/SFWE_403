@@ -700,7 +700,8 @@ a {
   border: 1px solid #fde68a;
 }
 
-.status-in_progress {
+.status-in_progress,
+.status-validated {
   background: #eff6ff;
   color: #1d4ed8;
   border: 1px solid #bfdbfe;

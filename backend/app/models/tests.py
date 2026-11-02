@@ -112,7 +112,7 @@ class Test(Base):
 
     notes: Mapped[str | None] = mapped_column(Text)
 
-    patient: Mapped["Patient"] = relationship()
+    patient: Mapped["Patient"] = relationship(back_populates="tests")
     physician: Mapped[Physician] = relationship(back_populates="tests")
     instrument: Mapped[Instrument | None] = relationship()
     collected_by: Mapped["User"] = relationship(foreign_keys=[collected_by_id])

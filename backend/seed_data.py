@@ -1,8 +1,8 @@
 from app.database import engine, Base, SessionLocal
 from app.models.user import User
 from app.models.patient import Patient
-from app.models.lab_test import LabTest
-from app.models.tests import Physician, Instrument
+from app.models.tests import Physician, Instrument, Test, SampleType, ResultStatus
+from datetime import datetime, timezone
 from app.security import password_hash
 
 def seed():
@@ -97,15 +97,7 @@ def seed():
     db.add_all([p1, p2, p3, p4])
     db.commit()
 
-    # Add tests for p1 and p2 (so deletion is blocked)
-    # p3 and p4 have NO tests (can be safely deleted)
-    t1 = LabTest(patient_id=p1.id, test_name="Complete Blood Count (CBC)", status="completed")
-    t2 = LabTest(patient_id=p1.id, test_name="Comprehensive Metabolic Panel", status="pending")
-    t3 = LabTest(patient_id=p2.id, test_name="Lipid Panel with Triglycerides", status="in_progress")
-    db.add_all([t1, t2, t3])
-    db.commit()
-
-    # Seed physicians and instruments
+    # Seed physicians and instruments (tests below reference them)
     physicians = [
         "Dr. Gregory House",
         "Dr. Allison Cameron",
@@ -126,7 +118,33 @@ def seed():
     for inst in instruments:
         if not db.query(Instrument).filter_by(name=inst).first():
             db.add(Instrument(name=inst))
+    db.commit()
 
+    house = db.query(Physician).filter_by(name="Dr. Gregory House").one()
+    sysmex = db.query(Instrument).filter_by(name="Sysmex XN-1000").one()
+    now = datetime.now(timezone.utc)
+
+    # Add tests for p1 and p2 (so deletion is blocked)
+    # p3 and p4 have NO tests (can be safely deleted)
+    common = dict(physician_id=house.id, collected_by_id=collector.id, collection_datetime=now)
+    t1 = Test(
+        patient_id=p1.id, report_id="RPT-SEED-001", sample_id="SMP-SEED-001",
+        sample_type=SampleType.BLOOD, test_name="Complete Blood Count (CBC)",
+        instrument_id=sysmex.id, units="x10^3/uL", reference_range_low=4.5, reference_range_high=11.0,
+        result_numeric=7.2, status=ResultStatus.COMPLETED, results_received_datetime=now,
+        performed_by_id=technician.id, **common,
+    )
+    t2 = Test(
+        patient_id=p1.id, report_id="RPT-SEED-002", sample_id="SMP-SEED-002",
+        sample_type=SampleType.BLOOD, test_name="Comprehensive Metabolic Panel",
+        status=ResultStatus.PENDING, **common,
+    )
+    t3 = Test(
+        patient_id=p2.id, report_id="RPT-SEED-003", sample_id="SMP-SEED-003",
+        sample_type=SampleType.BLOOD, test_name="Lipid Panel with Triglycerides",
+        status=ResultStatus.PENDING, **common,
+    )
+    db.add_all([t1, t2, t3])
     db.commit()
 
     print("Seed complete! Users, patients, physicians, and instruments created successfully.")

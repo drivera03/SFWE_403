@@ -1,14 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPatient } from '../services/api';
-import { getPatientTests, createLabTest } from '../services/tests';
+import { getPatientTests, createTest, getPhysicians, makeAccessionId, apiErrorMessage } from '../services/tests';
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
   { value: 'pending', label: 'Pending' },
-  { value: 'in_progress', label: 'In Progress' },
   { value: 'completed', label: 'Completed' },
-  { value: 'cancelled', label: 'Cancelled' },
+  { value: 'validated', label: 'Validated' },
+];
+
+const SAMPLE_TYPE_OPTIONS = [
+  { value: 'blood', label: 'Blood' },
+  { value: 'urine', label: 'Urine' },
+  { value: 'tissue', label: 'Tissue' },
+  { value: 'other', label: 'Other' },
 ];
 
 export default function PatientTests() {
@@ -28,7 +34,9 @@ export default function PatientTests() {
   // Create Test Modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newTestName, setNewTestName] = useState('');
-  const [newTestStatus, setNewTestStatus] = useState('pending');
+  const [newSampleType, setNewSampleType] = useState('blood');
+  const [newPhysicianId, setNewPhysicianId] = useState('');
+  const [physicians, setPhysicians] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modalError, setModalError] = useState('');
   const [successBanner, setSuccessBanner] = useState('');
@@ -38,17 +46,20 @@ export default function PatientTests() {
     async function loadData() {
       try {
         setError(null);
-        const [patientData, testsData] = await Promise.all([
+        const [patientData, testsData, physiciansData] = await Promise.all([
           getPatient(patientId),
           getPatientTests(patientId),
+          getPhysicians(),
         ]);
         if (!ignore) {
           setPatient(patientData);
           setTests(testsData);
+          setPhysicians(physiciansData);
+          setNewPhysicianId((prev) => prev || String(physiciansData[0]?.id ?? ''));
         }
       } catch (err) {
         if (!ignore) {
-          setError(err.response?.data?.detail || err.message || 'Failed to load test data.');
+          setError(apiErrorMessage(err, 'Failed to load test data.'));
         }
       } finally {
         if (!ignore) {
@@ -69,22 +80,34 @@ export default function PatientTests() {
       return;
     }
 
+    if (!newPhysicianId) {
+      setModalError('Ordering physician is required.');
+      return;
+    }
+
     try {
       setIsSubmitting(true);
       setModalError('');
-      const created = await createLabTest(patientId, {
+      // Quick Order uses the same endpoint as the full intake form; the IDs and
+      // collection time that the form lets you type are generated for you here.
+      const created = await createTest({
+        patient_id: parseInt(patientId, 10),
+        report_id: makeAccessionId('RPT'),
+        sample_id: makeAccessionId('SMP'),
+        sample_type: newSampleType,
+        collection_datetime: new Date().toISOString(),
         test_name: newTestName.trim(),
-        status: newTestStatus,
+        physician_id: parseInt(newPhysicianId, 10),
       });
 
       setTests((prev) => [created, ...prev]);
       setShowCreateModal(false);
       setNewTestName('');
-      setNewTestStatus('pending');
+      setNewSampleType('blood');
       setSuccessBanner(`Test "${created.test_name}" ordered successfully.`);
       setTimeout(() => setSuccessBanner(''), 4000);
     } catch (err) {
-      setModalError(err.response?.data?.detail || err.message || 'Failed to order lab test.');
+      setModalError(apiErrorMessage(err, 'Failed to order lab test.'));
     } finally {
       setIsSubmitting(false);
     }
@@ -102,7 +125,7 @@ export default function PatientTests() {
   const getStatusClass = (status) => {
     const s = (status || '').toLowerCase().replace('-', '_');
     if (s === 'completed') return 'status-completed';
-    if (s === 'in_progress') return 'status-in_progress';
+    if (s === 'validated') return 'status-validated';
     if (s === 'pending') return 'status-pending';
     return 'status-pending';
   };
@@ -305,7 +328,7 @@ export default function PatientTests() {
                 <th>Test ID</th>
                 <th>Test Name</th>
                 <th>Status</th>
-                <th>Date Ordered</th>
+                <th>Collected</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
@@ -329,8 +352,8 @@ export default function PatientTests() {
                     </span>
                   </td>
                   <td>
-                    {test.created_at
-                      ? new Date(test.created_at).toLocaleDateString('en-US', {
+                    {test.collection_datetime
+                      ? new Date(test.collection_datetime).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric',
@@ -390,20 +413,40 @@ export default function PatientTests() {
                 />
               </div>
 
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label className="form-label" htmlFor="new-test-status">
-                  Initial Status
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label className="form-label" htmlFor="new-test-sample-type">
+                  Sample Type
                 </label>
                 <select
-                  id="new-test-status"
+                  id="new-test-sample-type"
                   className="form-input"
-                  value={newTestStatus}
-                  onChange={(e) => setNewTestStatus(e.target.value)}
+                  value={newSampleType}
+                  onChange={(e) => setNewSampleType(e.target.value)}
                 >
-                  <option value="pending">Pending</option>
-                  <option value="in_progress">In Progress</option>
-                  <option value="completed">Completed</option>
-                  <option value="cancelled">Cancelled</option>
+                  {SAMPLE_TYPE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label className="form-label" htmlFor="new-test-physician">
+                  Ordering Physician *
+                </label>
+                <select
+                  id="new-test-physician"
+                  className="form-input"
+                  value={newPhysicianId}
+                  onChange={(e) => setNewPhysicianId(e.target.value)}
+                  required
+                >
+                  {physicians.map((doc) => (
+                    <option key={doc.id} value={doc.id}>
+                      {doc.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
