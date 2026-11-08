@@ -6,6 +6,8 @@ import { createPatient } from '../services/patients';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/landing.css';
 import '../styles/patients.css';
+import LowStockBanner from '../components/LowStockBanner';
+import LotLookup from '../components/LotLookup';
 
 // Roles allowed to create patients per MVP 1 matrix
 const CREATE_ROLES = [
@@ -78,6 +80,8 @@ export default function Patients() {
   return (
     <div className="patient-page">
       <Navbar />
+      {canDelete && <LowStockBanner />}
+      {canDelete && <LotLookup />}
 
       {/* Main Content Area */}
       <main>
