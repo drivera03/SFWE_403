@@ -7,7 +7,9 @@ VALID_ROLES = {
     "lab_technician",
     "pathologist",
     "billing",
+    "cashier",
     "physician",
+    "patient",
 }
 
 

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.activity_logger import log_activity
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import LAB_STAFF_ROLES, require_role
 from app.models.patient import Patient
 from app.models.tests import Instrument, Physician, ResultStatus, Test
 from app.models.user import User
@@ -18,11 +18,12 @@ from app.schemas.test import (
     TestUpdate,
 )
 
-# Every test route requires a logged-in user.
+# ConOps 6.3.1, 6.3.2, 6.3.5: all laboratory personnel may enter tests and view
+# test tracking. External users (patients, physicians) are not allowed.
 router = APIRouter(
     prefix="/tests",
     tags=["tests"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_role(*LAB_STAFF_ROLES))],
 )
 
 
@@ -44,7 +45,7 @@ def load_test(db: Session, test_id: int) -> Test | None:
 def create_test(
     body: TestCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
 ):
     """Create a new test order (intake). The logged-in user is recorded as the collector."""
     if db.get(Patient, body.patient_id) is None:
@@ -133,7 +134,7 @@ def update_test(
     test_id: int,
     body: TestUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
 ):
     """Update a test: rename it, change its status, or record results/notes."""
     test = load_test(db, test_id)
@@ -180,7 +181,7 @@ def update_test(
 def delete_test(
     test_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
 ):
     """Delete a test."""
     test = db.get(Test, test_id)

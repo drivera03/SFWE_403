@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import LAB_MANAGER, LAB_STAFF_ROLES, SPECIMEN_COLLECTOR, require_role
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.tests import Test
@@ -14,11 +14,11 @@ from app.activity_logger import log_activity
 
 logger = logging.getLogger("uvicorn.error")
 
-# Every patient route requires a logged-in user.
+# ConOps 6.1.4: all laboratory personnel may view, create, and update patient accounts.
 router = APIRouter(
     prefix="/patients",
     tags=["patients"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_role(*LAB_STAFF_ROLES))],
 )
 
 
@@ -42,7 +42,7 @@ def list_patients(db: Session = Depends(get_db)):
 def create_patient(
     body: PatientCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
 ):
     """Create a new patient record."""
     patient = Patient(**body.model_dump(exclude_unset=True))
@@ -77,7 +77,7 @@ def update_patient(
     patient_id: int,
     body: PatientUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
 ):
     """Update patient details."""
     patient = get_patient_or_404(patient_id, db)
@@ -110,12 +110,12 @@ def update_patient(
 @router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_patient(
     patient_id: int,
-    current_user: User = Depends(require_role("lab_manager")),
+    current_user: User = Depends(require_role(LAB_MANAGER, SPECIMEN_COLLECTOR)),
     db: Session = Depends(get_db),
 ):
     """Delete a patient record by ID.
 
-    Access is restricted to lab_manager role.
+    ConOps 6.1.5: only a specimen collector or lab manager may remove a patient.
     If the patient has linked lab tests, deletion is blocked with a 400 Bad Request.
     The deletion action is written to the activity log.
     """
