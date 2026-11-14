@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.activity_logger import log_activity
 from app.database import get_db
-from app.dependencies import get_current_user, require_role
+from app.dependencies import LAB_MANAGER, LAB_STAFF_ROLES, SPECIMEN_COLLECTOR, require_role
 from app.models.inventory import InventoryItem
 from app.models.tests import Test
 from app.models.user import User
@@ -20,7 +20,7 @@ from app.schemas.inventory import (
 router = APIRouter(
     prefix="/inventory",
     tags=["inventory"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_role(*LAB_STAFF_ROLES))],
 )
 
 LOW_STOCK_RATIO = 0.2
@@ -35,8 +35,14 @@ TEST_SUPPLIES: dict[str, dict[str, int]] = {
 
 
 @router.get("/low-stock", response_model=list[InventoryItemResponse])
-def low_stock(db: Session = Depends(get_db)):
-    """Items whose quantity is below 20% of their reorder threshold."""
+def low_stock(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(LAB_MANAGER)),
+):
+    """Items whose quantity is below 20% of their reorder threshold.
+
+    ConOps 6.4.2: low-stock notifications go to the lab manager.
+    """
     return (
         db.query(InventoryItem)
         .filter(InventoryItem.quantity < InventoryItem.reorder_threshold * LOW_STOCK_RATIO)
@@ -46,8 +52,15 @@ def low_stock(db: Session = Depends(get_db)):
 
 
 @router.get("/expiring", response_model=list[InventoryItemResponse])
-def expiring(days: int = Query(30, ge=1), db: Session = Depends(get_db)):
-    """Items already expired or expiring within `days` from now (default 30)."""
+def expiring(
+    days: int = Query(30, ge=1),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(LAB_MANAGER)),
+):
+    """Items already expired or expiring within `days` from now (default 30).
+
+    ConOps 6.4.6: expiration notifications go to the lab manager.
+    """
     cutoff = date.today() + timedelta(days=days)
     return (
         db.query(InventoryItem)
@@ -61,9 +74,12 @@ def expiring(days: int = Query(30, ge=1), db: Session = Depends(get_db)):
 def check_availability(
     test_name: str = Query(...),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("specimen_collector")),
+    current_user: User = Depends(require_role(SPECIMEN_COLLECTOR)),
 ):
-    """Check whether the supplies a test type needs are in stock and not expired."""
+    """Check whether the supplies a test type needs are in stock and not expired.
+
+    ConOps 6.3.3: only specimen collectors may check reagent availability.
+    """
     needed_items = TEST_SUPPLIES.get(test_name)
     if needed_items is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No supply list for test '{test_name}'")
@@ -119,9 +135,9 @@ def delete_item(
     item_id: int,
     reason: str = Query(..., min_length=1, max_length=500),
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("lab_manager")),
+    current_user: User = Depends(require_role(LAB_MANAGER)),
 ):
-    """Remove an inventory item and log who removed it, when, and why."""
+    """Remove an inventory item and log who removed it, when, and why (ConOps 6.4.7)."""
     item = db.get(InventoryItem, item_id)
     if item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Inventory item with ID {item_id} not found")

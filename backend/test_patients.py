@@ -33,7 +33,7 @@ class TestPatients(unittest.TestCase):
     def setUp(self):
         Base.metadata.create_all(engine)
         app.dependency_overrides[get_db] = override_get_db
-        app.dependency_overrides[get_current_user] = lambda: object()
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, role="technician")
         self.client = TestClient(app)
 
     def tearDown(self):
@@ -82,13 +82,38 @@ class TestPatients(unittest.TestCase):
         self.assertEqual(self.client.get(f"/patients/{pid}").status_code, 404)
         self.assertEqual(self.client.get("/patients").json(), [])
 
+    def test_specimen_collector_can_delete_patient(self):
+        # ConOps 6.1.5: specimen collectors or lab managers may remove a patient.
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(role="specimen_collector")
+        pid = self.client.post("/patients", json=SAMPLE).json()["id"]
+        self.assertEqual(self.client.delete(f"/patients/{pid}").status_code, 204)
+        self.assertEqual(self.client.get(f"/patients/{pid}").status_code, 404)
+
     def test_other_roles_cannot_delete_patient(self):
         pid = self.client.post("/patients", json=SAMPLE).json()["id"]
-        for role in ("specimen_collector", "lab_technician", "pathologist", "billing", "physician", "", "admin"):
+        for role in ("technician", "lab_technician", "pathologist", "billing", "cashier"):
             with self.subTest(role=role):
                 app.dependency_overrides[get_current_user] = lambda role=role: SimpleNamespace(role=role)
                 self.assertEqual(self.client.delete(f"/patients/{pid}").status_code, 403)
                 self.assertEqual(self.client.get(f"/patients/{pid}").status_code, 200)
+
+    def test_all_lab_staff_can_create_and_update_patients(self):
+        # ConOps 6.1.4: all laboratory personnel may create/update patient accounts.
+        for role in ("lab_manager", "specimen_collector", "technician", "lab_technician", "cashier"):
+            with self.subTest(role=role):
+                app.dependency_overrides[get_current_user] = lambda role=role: SimpleNamespace(id=1, role=role)
+                pid = self.client.post("/patients", json=SAMPLE).json()["id"]
+                self.assertEqual(self.client.put(f"/patients/{pid}", json={"phone": "1"}).status_code, 200)
+
+    def test_external_users_cannot_access_patients(self):
+        pid = self.client.post("/patients", json=SAMPLE).json()["id"]
+        for role in ("patient", "physician", "", "admin"):
+            with self.subTest(role=role):
+                app.dependency_overrides[get_current_user] = lambda role=role: SimpleNamespace(id=1, role=role)
+                self.assertEqual(self.client.get("/patients").status_code, 403)
+                self.assertEqual(self.client.post("/patients", json=SAMPLE).status_code, 403)
+                self.assertEqual(self.client.put(f"/patients/{pid}", json={"phone": "1"}).status_code, 403)
+                self.assertEqual(self.client.delete(f"/patients/{pid}").status_code, 403)
 
     def test_delete_missing_patient(self):
         app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(role="lab_manager")
@@ -98,7 +123,7 @@ class TestPatients(unittest.TestCase):
         pid = self.client.post("/patients", json=SAMPLE).json()["id"]
         app.dependency_overrides.pop(get_current_user)
         self.assertEqual(self.client.delete(f"/patients/{pid}").status_code, 401)
-        app.dependency_overrides[get_current_user] = lambda: object()
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=1, role="technician")
         self.assertEqual(self.client.get(f"/patients/{pid}").status_code, 200)
 
 

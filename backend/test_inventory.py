@@ -100,6 +100,20 @@ class TestInventory(unittest.TestCase):
         res = self.client.get("/inventory/check-availability", params={"test_name": "Lipid Panel"})
         self.assertEqual(res.status_code, 403)
 
+    def test_low_stock_and_expiring_only_lab_manager(self):
+        # ConOps 6.4.2 / 6.4.6: these notifications go to the lab manager.
+        for role in ("specimen_collector", "technician", "cashier"):
+            with self.subTest(role=role):
+                login_as(role)
+                self.assertEqual(self.client.get("/inventory/low-stock").status_code, 403)
+                self.assertEqual(self.client.get("/inventory/expiring").status_code, 403)
+
+    def test_external_users_cannot_access_inventory(self):
+        for role in ("patient", "physician"):
+            with self.subTest(role=role):
+                login_as(role)
+                self.assertEqual(self.client.get("/inventory/lookup", params={"number": "LOT-A"}).status_code, 403)
+
     def test_lot_lookup(self):
         for number in ("LOT-A", "B-1"):
             res = self.client.get("/inventory/lookup", params={"number": number})

@@ -11,6 +11,22 @@ from app.security import decode_access_token
 
 http_bearer = HTTPBearer(auto_error=False)
 
+# Role names (see ConOps 6.1.3 User Types).
+LAB_MANAGER = "lab_manager"
+SPECIMEN_COLLECTOR = "specimen_collector"
+
+# "Laboratory personnel" / "laboratory staff" in the ConOps. External users
+# (patients and healthcare providers/physicians) are deliberately excluded.
+LAB_STAFF_ROLES = (
+    LAB_MANAGER,
+    SPECIMEN_COLLECTOR,
+    "technician",
+    "lab_technician",
+    "pathologist",
+    "cashier",
+    "billing",
+)
+
 
 def get_current_user(
     credentials: HTTPAuthorizationCredentials | None = Depends(http_bearer),
