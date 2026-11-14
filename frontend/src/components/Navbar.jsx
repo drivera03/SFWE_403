@@ -76,6 +76,17 @@ export default function Navbar() {
             </Link>
           )}
 
+          {isAuthenticated && currentUser?.role === 'lab_manager' && (
+            <Link
+              to="/activity-logs"
+              className="nav-link"
+              aria-current={location.pathname === '/activity-logs' ? 'page' : undefined}
+              style={location.pathname === '/activity-logs' ? { color: '#ffffff', fontWeight: 700 } : {}}
+            >
+              Activity Logs
+            </Link>
+          )}
+
           {/* Persona role switcher for multi-role testing */}
           {isAuthenticated && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>

@@ -96,6 +96,10 @@ class TestActivityLogs(unittest.TestCase):
         self.assertEqual(entry["resource_id"], "10")
         self.assertEqual(entry["details"], {"name": "Ana Lopez"})  # JSON is parsed, not a string
 
+    def test_timestamps_are_explicitly_utc(self):
+        entry = self.client.get("/activity-logs", params={"limit": 1}).json()[0]
+        self.assertTrue(entry["timestamp"].endswith(("Z", "+00:00")), entry["timestamp"])
+
     def test_non_json_details_and_missing_user(self):
         entries = {e["id"]: e for e in self.client.get("/activity-logs").json()}
         self.assertEqual(entries[4]["details"], "not json")
@@ -126,6 +130,52 @@ class TestActivityLogs(unittest.TestCase):
     def test_pagination(self):
         self.assertEqual(self.ids(limit=2), [5, 4])
         self.assertEqual(self.ids(limit=2, offset=2), [3, 2])
+
+    def test_tz_offset_shifts_day_boundaries(self):
+        # Arizona (UTC-7, offset 420): local Oct 1 runs 2026-10-01 07:00Z to 2026-10-02 07:00Z,
+        # so the 00:00Z entry on Oct 2 is the evening of Oct 1 locally.
+        self.assertEqual(self.ids(date="2026-10-01", tz_offset=420), [2, 1])
+        self.assertEqual(self.ids(date="2026-10-02", tz_offset=420), [4, 3])
+
+    # Search
+    def test_search_matches_action_details_and_user(self):
+        self.assertEqual(self.ids(search="PATIENT_created"), [3, 1])  # case-insensitive
+        self.assertEqual(self.ids(search="lipid"), [2])                # inside JSON details
+        self.assertEqual(self.ids(search="tech@"), [3, 2])             # user email
+        self.assertEqual(self.ids(search="mason"), [4, 1])             # username
+
+    def test_search_combines_with_filters(self):
+        self.assertEqual(self.ids(search="patient", user_id=1), [1])
+
+    def test_search_treats_wildcards_literally(self):
+        self.assertEqual(self.ids(search="%"), [])
+        self.assertEqual(self.ids(search="_"), [5, 4, 3, 2, 1])  # every action has a real underscore
+
+    def test_blank_search_is_ignored(self):
+        self.assertEqual(self.ids(search="   "), [5, 4, 3, 2, 1])
+
+    # Dropdown endpoints
+    def test_actions_endpoint(self):
+        response = self.client.get("/activity-logs/actions")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.json(),
+            ["inventory_removed", "patient_created", "system_event", "test_created"],
+        )
+
+    def test_users_endpoint_lists_only_logged_users(self):
+        db = TestingSession()
+        db.add(User(id=3, username="quiet", email="quiet@example.com", role="cashier", password_hash="x"))
+        db.commit()
+        db.close()
+        users = self.client.get("/activity-logs/users").json()
+        self.assertEqual([u["username"] for u in users], ["mason", "tech"])
+        self.assertEqual(set(users[0]), {"id", "username", "email", "role"})  # no password hash
+
+    def test_dropdown_endpoints_only_lab_manager(self):
+        login_as("technician")
+        self.assertEqual(self.client.get("/activity-logs/actions").status_code, 403)
+        self.assertEqual(self.client.get("/activity-logs/users").status_code, 403)
 
     # Validation
     def test_date_and_range_together_rejected(self):

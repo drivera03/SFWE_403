@@ -13,6 +13,7 @@ import PatientTests from './pages/PatientTests';
 import TestDetail from './pages/TestDetail';
 import TestIntake from './pages/TestIntake';
 import UnlockUser from './pages/UnlockUser';
+import ActivityLogs from './pages/ActivityLogs';
 import NotFound from './pages/NotFound';
 import './index.css';
 
@@ -83,6 +84,15 @@ export default function App() {
                   <>
                     <Navbar />
                     <UnlockUser />
+                  </>
+                }
+              />
+              <Route
+                path="/activity-logs"
+                element={
+                  <>
+                    <Navbar />
+                    <ActivityLogs />
                   </>
                 }
               />
