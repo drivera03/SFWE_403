@@ -63,9 +63,9 @@ export function AuthProvider({ children }) {
     return () => controller.abort();
   }, []);
 
-  // Check if current user role has permission to delete patients
+  // ConOps 6.1.5: only a specimen collector or lab manager may remove a patient
   const canDeletePatient = useCallback(() => {
-    return currentUser?.role === 'lab_manager';
+    return ['lab_manager', 'specimen_collector'].includes(currentUser?.role);
   }, [currentUser]);
 
   // Quick switch role utility (enables testing criteria: "Verified by logging in as each role")
@@ -76,6 +76,7 @@ export function AuthProvider({ children }) {
       technician: { id: 3, username: 'lab_technician', email: 'tech@clms.local', role: 'technician' },
       pathologist: { id: 4, username: 'pathologist_dr', email: 'pathologist@clms.local', role: 'pathologist' },
       billing: { id: 5, username: 'billing_staff', email: 'billing@clms.local', role: 'billing' },
+      cashier: { id: 6, username: 'cashier', email: 'cashier@clms.local', role: 'cashier' },
     };
 
     const target = roleProfiles[role] || { id: 99, username: role, email: `${role}@clms.local`, role };

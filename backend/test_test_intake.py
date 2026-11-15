@@ -233,6 +233,14 @@ class TestTestIntake(unittest.TestCase):
         db.close()
         self.assertEqual(actions, ["test_created", "test_updated", "test_deleted"])
 
+    def test_external_users_cannot_access_tests(self):
+        # ConOps 6.3.1/6.3.2/6.3.5: test entry and tracking are for laboratory personnel.
+        for role in ("patient", "physician"):
+            with self.subTest(role=role):
+                app.dependency_overrides[get_current_user] = lambda role=role: SimpleNamespace(id=1, role=role)
+                self.assertEqual(self.client.post("/tests", json=self.make_test()).status_code, 403)
+                self.assertEqual(self.client.get("/tests", params={"patient_id": self.patient_id}).status_code, 403)
+
     def test_requires_login(self):
         app.dependency_overrides.pop(get_current_user)
         self.assertEqual(self.client.get("/tests/1").status_code, 401)

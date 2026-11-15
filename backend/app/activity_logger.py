@@ -14,8 +14,14 @@ def log_activity(
     resource_type: str | None = None,
     resource_id: str | None = None,
     details: Any = None,
+    commit: bool = True,
 ) -> ActivityLog:
-    """Record an action to the database activity log and write to application logger."""
+    """Record an action to the database activity log and write to application logger.
+
+    With commit=False the entry is only added to the session, so it is saved in the
+    same transaction as the change it describes (the caller commits). Use that when
+    a change must never be saved without its log entry.
+    """
     details_str = json.dumps(details) if isinstance(details, (dict, list)) else (str(details) if details is not None else None)
 
     log_entry = ActivityLog(
@@ -26,8 +32,11 @@ def log_activity(
         details=details_str,
     )
     db.add(log_entry)
-    db.commit()
-    db.refresh(log_entry)
+    if commit:
+        db.commit()
+        db.refresh(log_entry)
+    else:
+        db.flush()  # assigns the id and timestamp without ending the caller's transaction
 
     logger.info(
         "[ACTIVITY LOG] action=%s user_id=%s resource_type=%s resource_id=%s details=%s",

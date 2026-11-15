@@ -204,7 +204,7 @@ export default function PatientDetail() {
                 setDeleteError('');
                 setShowDeleteModal(true);
               }}
-              title="Delete patient record (Lab Manager only)"
+              title="Delete patient record (Lab Manager or Specimen Collector)"
             >
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="btn-icon">
                 <polyline points="3 6 5 6 21 6" />
@@ -215,12 +215,12 @@ export default function PatientDetail() {
               Delete Patient
             </button>
           ) : (
-            <span className="delete-restricted-hint" title="Delete restricted to Lab Manager">
+            <span className="delete-restricted-hint" title="Delete restricted to Lab Manager or Specimen Collector">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="lock-icon">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
                 <path d="M7 11V7a5 5 0 0 1 10 0v4" />
               </svg>
-              Delete Restricted (Lab Manager Only)
+              Delete Restricted (Lab Manager / Specimen Collector Only)
             </span>
           )}
         </div>

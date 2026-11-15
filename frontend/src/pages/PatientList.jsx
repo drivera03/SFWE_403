@@ -10,7 +10,9 @@ const CREATE_ROLES = [
   'specimen_collector',
   'lab_technician',
   'technician',
+  'pathologist',
   'cashier',
+  'billing',
 ];
 
 export default function PatientList() {

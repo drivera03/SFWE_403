@@ -22,6 +22,7 @@ export default function Navbar() {
     { id: 'specimen_collector', label: 'Specimen Collector' },
     { id: 'technician', label: 'Technician' },
     { id: 'pathologist', label: 'Pathologist' },
+    { id: 'cashier', label: 'Cashier' },
   ];
 
   const handleSignOut = () => {

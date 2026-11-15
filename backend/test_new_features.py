@@ -330,10 +330,18 @@ class TestNewFeatures(unittest.TestCase):
         )
         self.assertEqual(res.status_code, 404)
 
-    def test_delete_patient_forbidden_for_non_manager(self):
+    def test_delete_patient_allowed_for_specimen_collector(self):
+        # ConOps 6.1.5: specimen collectors or lab managers may remove a patient.
         res = self.client.delete(
             "/patients/102",
             headers={"Authorization": f"Bearer {self.collector_token}"},
+        )
+        self.assertEqual(res.status_code, 204)
+
+    def test_delete_patient_forbidden_for_technician(self):
+        res = self.client.delete(
+            "/patients/102",
+            headers={"Authorization": f"Bearer {self.tech_token}"},
         )
         self.assertEqual(res.status_code, 403)
 

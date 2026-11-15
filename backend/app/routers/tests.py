@@ -3,9 +3,10 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, selectinload
 
+from app.activity_hooks import RESULT_FIELDS, log_result_changes, snapshot_result
 from app.activity_logger import log_activity
 from app.database import get_db
-from app.dependencies import get_current_user
+from app.dependencies import LAB_STAFF_ROLES, require_role
 from app.models.patient import Patient
 from app.models.tests import Instrument, Physician, ResultStatus, Test
 from app.models.user import User
@@ -18,11 +19,12 @@ from app.schemas.test import (
     TestUpdate,
 )
 
-# Every test route requires a logged-in user.
+# ConOps 6.3.1, 6.3.2, 6.3.5: all laboratory personnel may enter tests and view
+# test tracking. External users (patients, physicians) are not allowed.
 router = APIRouter(
     prefix="/tests",
     tags=["tests"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_role(*LAB_STAFF_ROLES))],
 )
 
 
@@ -44,7 +46,7 @@ def load_test(db: Session, test_id: int) -> Test | None:
 def create_test(
     body: TestCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
 ):
     """Create a new test order (intake). The logged-in user is recorded as the collector."""
     if db.get(Patient, body.patient_id) is None:
@@ -133,13 +135,14 @@ def update_test(
     test_id: int,
     body: TestUpdate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
 ):
     """Update a test: rename it, change its status, or record results/notes."""
     test = load_test(db, test_id)
     if test is None:
         raise not_found(f"Test with ID {test_id} not found")
 
+    before = snapshot_result(test)
     changes = body.model_dump(exclude_unset=True)
     # test_name and status are required columns, so an explicit null means "leave it alone"
     for required in ("test_name", "status"):
@@ -162,17 +165,24 @@ def update_test(
         test.results_received_datetime = datetime.now(timezone.utc)
         test.performed_by_id = current_user.id
 
+    # Result and status changes get their own entries (result_entered, result_updated,
+    # result_status_changed); other edits such as notes are logged as test_updated.
+    # Everything is logged in the same transaction as the change.
+    log_result_changes(db, current_user.id, test, before)
+    other_fields = [field for field in changes if field not in (*RESULT_FIELDS, "status")]
+    if other_fields:
+        log_activity(
+            db=db,
+            action="test_updated",
+            user_id=current_user.id,
+            resource_type="test",
+            resource_id=str(test.id),
+            details={"updated_fields": other_fields},
+            commit=False,
+        )
+
     db.commit()
     db.refresh(test)
-
-    log_activity(
-        db=db,
-        action="test_updated",
-        user_id=current_user.id,
-        resource_type="test",
-        resource_id=str(test.id),
-        details={"updated_fields": list(changes.keys())},
-    )
     return test
 
 
@@ -180,7 +190,7 @@ def update_test(
 def delete_test(
     test_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
 ):
     """Delete a test."""
     test = db.get(Test, test_id)

@@ -16,7 +16,9 @@ const CREATE_ROLES = [
   'specimen_collector',
   'lab_technician',
   'technician',
+  'pathologist',
   'cashier',
+  'billing',
 ];
 
 export default function Patients() {
@@ -39,7 +41,10 @@ export default function Patients() {
 
   const userRole = (currentUser?.role || '').toLowerCase();
   const canCreate = !currentUser || CREATE_ROLES.includes(userRole);
-  const canDelete = userRole === 'lab_manager';
+  // ConOps 6.1.5: specimen collectors or lab managers may remove patients
+  const canDelete = ['lab_manager', 'specimen_collector'].includes(userRole);
+  // ConOps 6.4.2 / 6.4.6: inventory notifications go to the lab manager
+  const isLabManager = userRole === 'lab_manager';
 
   const handleOpenRecord = (patient) => {
     setSelectedPatient(patient);
@@ -80,8 +85,8 @@ export default function Patients() {
   return (
     <div className="patient-page">
       <Navbar />
-      {canDelete && <LowStockBanner />}
-      {canDelete && <LotLookup />}
+      {isLabManager && <LowStockBanner />}
+      {isLabManager && <LotLookup />}
 
       {/* Main Content Area */}
       <main>
