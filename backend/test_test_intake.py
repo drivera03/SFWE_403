@@ -14,6 +14,7 @@ from app.dependencies import get_current_user
 from app.main import app
 from app import models  # noqa: F401
 from app.models.patient import Patient
+from app.models.inventory import InventoryItem
 from app.models.tests import Physician
 from app.models.activity_log import ActivityLog
 
@@ -39,7 +40,10 @@ class TestTestIntake(unittest.TestCase):
         db = TestingSession()
         patient = Patient(first_name="Ana", last_name="Lopez", date_of_birth=None)
         physician = Physician(name="Dr. Gregory House")
-        db.add_all([patient, physician])
+        db.add_all([patient, physician,
+            InventoryItem(item_name="Lipid Reagent Kit", quantity=100),
+            InventoryItem(item_name="Serum Tube", quantity=100),
+        ])
         db.commit()
         self.patient_id = patient.id
         self.physician_id = physician.id
@@ -231,7 +235,86 @@ class TestTestIntake(unittest.TestCase):
         db = TestingSession()
         actions = [a.action for a in db.query(ActivityLog).order_by(ActivityLog.id).all()]
         db.close()
-        self.assertEqual(actions, ["test_created", "test_updated", "test_deleted"])
+        self.assertEqual(actions, ["inventory_deducted", "inventory_deducted",
+                                   "test_created", "test_updated", "test_deleted"])
+
+    def stock(self):
+        with TestingSession() as db:
+            return {item.id: item.quantity for item in db.query(InventoryItem).all()}
+
+    def test_inventory_deducted_once_despite_retry_and_update(self):
+        before = self.stock()
+        response = self.client.post("/tests", json=self.make_test())
+        self.assertEqual(response.status_code, 201)
+        after = self.stock()
+        self.assertEqual(after, {key: value - 1 for key, value in before.items()})
+        self.assertEqual(self.client.post("/tests", json=self.make_test()).status_code, 409)
+        self.assertEqual(self.client.put(f"/tests/{response.json()['id']}",
+                                       json={"notes": "edited"}).status_code, 200)
+        self.assertEqual(self.stock(), after)
+        with TestingSession() as db:
+            logs = db.query(ActivityLog).filter_by(action="inventory_deducted").all()
+            self.assertEqual(len(logs), 2)
+            import json
+            self.assertEqual(json.loads(logs[0].details)["test_id"], response.json()["id"])
+
+    def test_shortage_rolls_back_test_stock_and_logs(self):
+        # Serum Tube sorts after Lipid Reagent Kit, exercising partial rollback.
+        with TestingSession() as db:
+            db.query(InventoryItem).filter_by(item_name="Serum Tube").update({"quantity": 0})
+            db.commit()
+        before = self.stock()
+        response = self.client.post("/tests", json=self.make_test())
+        self.assertEqual(response.status_code, 409)
+        self.assertIn("Serum Tube", response.json()["detail"])
+        self.assertEqual(self.stock(), before)
+        with TestingSession() as db:
+            from app.models.tests import Test
+            self.assertEqual(db.query(Test).count(), 0)
+            self.assertEqual(db.query(ActivityLog).count(), 0)
+
+    def test_earliest_unexpired_lot_used_first(self):
+        from datetime import date, timedelta
+        with TestingSession() as db:
+            expired = InventoryItem(item_name="Serum Tube", quantity=5,
+                                    expiration_date=date.today() - timedelta(days=1))
+            today = InventoryItem(item_name="Serum Tube", quantity=1,
+                                  expiration_date=date.today())
+            later = InventoryItem(item_name="Serum Tube", quantity=5,
+                                  expiration_date=date.today() + timedelta(days=5))
+            db.add_all([expired, today, later])
+            db.commit()
+            ids = expired.id, today.id, later.id
+        self.assertEqual(self.client.post("/tests", json=self.make_test()).status_code, 201)
+        stock = self.stock()
+        self.assertEqual([stock[key] for key in ids], [5, 0, 5])
+
+    def test_requirement_can_span_multiple_lots(self):
+        from unittest.mock import patch
+        from app.inventory import TEST_SUPPLIES
+        with TestingSession() as db:
+            db.query(InventoryItem).filter_by(item_name="Serum Tube").update({"quantity": 1})
+            db.add(InventoryItem(item_name="Serum Tube", quantity=2))
+            db.commit()
+        with patch.dict(TEST_SUPPLIES, {"Lipid Panel": {"Serum Tube": 3}}):
+            self.assertEqual(self.client.post("/tests", json=self.make_test()).status_code, 201)
+        with TestingSession() as db:
+            self.assertEqual([item.quantity for item in db.query(InventoryItem)
+                              .filter_by(item_name="Serum Tube").all()], [0, 0])
+
+    def test_expired_stock_cannot_fill_shortage(self):
+        from datetime import date, timedelta
+        with TestingSession() as db:
+            db.query(InventoryItem).filter_by(item_name="Serum Tube").update(
+                {"expiration_date": date.today() - timedelta(days=1)})
+            db.commit()
+        self.assertEqual(self.client.post("/tests", json=self.make_test()).status_code, 409)
+
+    def test_unknown_supply_list_rejected_without_changes(self):
+        before = self.stock()
+        response = self.client.post("/tests", json=self.make_test(test_name="Unconfigured Test"))
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(self.stock(), before)
 
     def test_external_users_cannot_access_tests(self):
         # ConOps 6.3.1/6.3.2/6.3.5: test entry and tracking are for laboratory personnel.
