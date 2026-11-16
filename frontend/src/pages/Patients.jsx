@@ -6,8 +6,6 @@ import { createPatient } from '../services/patients';
 import { useAuth } from '../hooks/useAuth';
 import '../styles/landing.css';
 import '../styles/patients.css';
-import LowStockBanner from '../components/LowStockBanner';
-import LotLookup from '../components/LotLookup';
 
 // Roles allowed to create patients per MVP 1 matrix
 const CREATE_ROLES = [
@@ -43,8 +41,6 @@ export default function Patients() {
   const canCreate = !currentUser || CREATE_ROLES.includes(userRole);
   // ConOps 6.1.5: specimen collectors or lab managers may remove patients
   const canDelete = ['lab_manager', 'specimen_collector'].includes(userRole);
-  // ConOps 6.4.2 / 6.4.6: inventory notifications go to the lab manager
-  const isLabManager = userRole === 'lab_manager';
 
   const handleOpenRecord = (patient) => {
     setSelectedPatient(patient);
@@ -85,8 +81,6 @@ export default function Patients() {
   return (
     <div className="patient-page">
       <Navbar />
-      {isLabManager && <LowStockBanner />}
-      {isLabManager && <LotLookup />}
 
       {/* Main Content Area */}
       <main>

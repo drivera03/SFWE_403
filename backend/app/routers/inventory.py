@@ -10,12 +10,15 @@ from app.dependencies import LAB_MANAGER, LAB_STAFF_ROLES, SPECIMEN_COLLECTOR, r
 from app.models.inventory import InventoryItem
 from app.models.tests import Test
 from app.models.user import User
+from app.notifications import emit_expiring_soon_notification, emit_low_stock_notification
 from app.schemas.inventory import (
     AvailabilityResponse,
     InventoryItemResponse,
+    InventoryReceiveRequest,
     LotLookupResponse,
     SupplyCheck,
 )
+
 
 router = APIRouter(
     prefix="/inventory",
@@ -34,6 +37,25 @@ TEST_SUPPLIES: dict[str, dict[str, int]] = {
 }
 
 
+@router.get("", response_model=list[InventoryItemResponse])
+def list_inventory(
+    search: str | None = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """List inventory items, optionally filtered by name or lot/batch number."""
+    query = db.query(InventoryItem)
+    if search:
+        term = f"%{search}%"
+        query = query.filter(
+            or_(
+                InventoryItem.item_name.ilike(term),
+                InventoryItem.lot_number.ilike(term),
+                InventoryItem.batch_number.ilike(term),
+            )
+        )
+    return query.order_by(InventoryItem.item_name, InventoryItem.id).all()
+
+
 @router.get("/low-stock", response_model=list[InventoryItemResponse])
 def low_stock(
     db: Session = Depends(get_db),
@@ -43,12 +65,20 @@ def low_stock(
 
     ConOps 6.4.2: low-stock notifications go to the lab manager.
     """
-    return (
+    items = (
         db.query(InventoryItem)
         .filter(InventoryItem.quantity < InventoryItem.reorder_threshold * LOW_STOCK_RATIO)
         .order_by(InventoryItem.quantity)
         .all()
     )
+    for item in items:
+        emit_low_stock_notification(
+            item_id=item.id,
+            item_name=item.item_name,
+            quantity=item.quantity,
+            reorder_threshold=item.reorder_threshold,
+        )
+    return items
 
 
 @router.get("/expiring", response_model=list[InventoryItemResponse])
@@ -62,12 +92,101 @@ def expiring(
     ConOps 6.4.6: expiration notifications go to the lab manager.
     """
     cutoff = date.today() + timedelta(days=days)
-    return (
+    items = (
         db.query(InventoryItem)
         .filter(InventoryItem.expiration_date <= cutoff)
         .order_by(InventoryItem.expiration_date)
         .all()
     )
+    today = date.today()
+    for item in items:
+        days_left = (item.expiration_date - today).days if item.expiration_date else None
+        emit_expiring_soon_notification(
+            item_id=item.id,
+            item_name=item.item_name,
+            lot_number=item.lot_number,
+            expiration_date=item.expiration_date,
+            days_until_expiration=days_left,
+        )
+    return items
+
+
+@router.post("/receive", response_model=InventoryItemResponse, status_code=status.HTTP_200_OK)
+def receive_supplies(
+    payload: InventoryReceiveRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
+):
+    """Update stock when new supplies arrive (or create a new inventory batch/lot)."""
+    item: InventoryItem | None = None
+    if payload.item_id is not None:
+        item = db.get(InventoryItem, payload.item_id)
+        if item is None:
+            raise HTTPException(status.HTTP_404_NOT_FOUND, f"Inventory item with ID {payload.item_id} not found")
+        item.quantity += payload.quantity
+        if payload.reorder_threshold is not None:
+            item.reorder_threshold = payload.reorder_threshold
+        if payload.expiration_date is not None:
+            item.expiration_date = payload.expiration_date
+        if payload.batch_number is not None:
+            item.batch_number = payload.batch_number
+        if payload.lot_number is not None:
+            item.lot_number = payload.lot_number
+        if payload.machine_id is not None:
+            item.machine_id = payload.machine_id
+    elif payload.lot_number:
+        item = (
+            db.query(InventoryItem)
+            .filter(
+                InventoryItem.item_name == payload.item_name,
+                InventoryItem.lot_number == payload.lot_number,
+            )
+            .first()
+        )
+        if item is not None:
+            item.quantity += payload.quantity
+            if payload.expiration_date is not None:
+                item.expiration_date = payload.expiration_date
+            if payload.reorder_threshold is not None:
+                item.reorder_threshold = payload.reorder_threshold
+            if payload.machine_id is not None:
+                item.machine_id = payload.machine_id
+            if payload.batch_number is not None:
+                item.batch_number = payload.batch_number
+
+    if item is None:
+        item = InventoryItem(
+            item_name=payload.item_name,
+            batch_number=payload.batch_number,
+            lot_number=payload.lot_number,
+            quantity=payload.quantity,
+            expiration_date=payload.expiration_date,
+            reorder_threshold=payload.reorder_threshold if payload.reorder_threshold is not None else 0,
+            machine_id=payload.machine_id,
+        )
+        db.add(item)
+
+    db.commit()
+    db.refresh(item)
+
+    log_activity(
+        db=db,
+        action="inventory_received",
+        user_id=current_user.id,
+        resource_type="inventory",
+        resource_id=str(item.id),
+        details={
+            "item_name": item.item_name,
+            "quantity_received": payload.quantity,
+            "new_total_quantity": item.quantity,
+            "batch_number": item.batch_number,
+            "lot_number": item.lot_number,
+            "expiration_date": str(item.expiration_date) if item.expiration_date else None,
+        },
+    )
+
+    return item
+
 
 
 @router.get("/check-availability", response_model=AvailabilityResponse)
