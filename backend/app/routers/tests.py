@@ -1,7 +1,13 @@
+import json
 from datetime import datetime, timezone
+
+from app.models.activity_log import ActivityLog
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.exc import IntegrityError
+
+from app.inventory import deduct_test_supplies
 
 from app.activity_logger import log_activity
 from app.database import get_db
@@ -65,18 +71,25 @@ def create_test(
         collected_by_id=current_user.id,
         status=ResultStatus.PENDING,
     )
-    db.add(test)
-    db.commit()
+    try:
+        db.add(test)
+        db.flush()
+        deduct_test_supplies(db, test.test_name, test.id, current_user.id)
+        # Include the creation audit in the same transaction as stock consumption.
+        db.add(ActivityLog(
+            action="test_created", user_id=current_user.id,
+            resource_type="test", resource_id=str(test.id),
+            details=json.dumps({"test_name": test.test_name, "patient_id": test.patient_id}),
+        ))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Test conflicts with existing data")
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(test)
 
-    log_activity(
-        db=db,
-        action="test_created",
-        user_id=current_user.id,
-        resource_type="test",
-        resource_id=str(test.id),
-        details={"test_name": test.test_name, "patient_id": test.patient_id},
-    )
     return test
 
 

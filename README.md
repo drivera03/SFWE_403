@@ -153,3 +153,17 @@ The response includes `access_token` and `token_type`. You can also try
 clients use the returned token. For a shared backend, teammates should log in
 to that backend to get tokens; tokens created with a different local secret
 will fail verification. These sample credentials are for local development only.
+
+## Automatic inventory deduction
+
+Submitting test intake (`POST /tests`) deducts the quantities configured in
+`backend/app/inventory.py` for that test name. Current supply lists cover Lipid
+Panel, Complete Blood Count, and Urinalysis. Add a supply list before ordering
+another test type; unconfigured names return 422.
+
+Unexpired lots are consumed in expiration order, with undated lots last. A lot
+expiring today is eligible, consistent with the availability endpoint. Insufficient
+stock returns 409 and rolls back the entire order. Test creation, stock changes,
+and per-lot activity records commit together. Duplicate report/sample submissions
+cannot deduct twice. Editing, completing, or deleting a test does not consume
+more inventory or restore supplies already used. No database migration is needed.
