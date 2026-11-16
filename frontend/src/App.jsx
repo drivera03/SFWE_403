@@ -15,6 +15,7 @@ import TestIntake from './pages/TestIntake';
 import UnlockUser from './pages/UnlockUser';
 import EquipmentMaintenance from './pages/EquipmentMaintenance';
 import Inventory from './pages/Inventory';
+import ActivityLogs from './pages/ActivityLogs';
 import NotFound from './pages/NotFound';
 import './index.css';
 
@@ -92,6 +93,15 @@ export default function App() {
               <Route path="/equipment-maintenance" element={<EquipmentMaintenance />} />
               <Route path="/maintenance" element={<EquipmentMaintenance />} />
               <Route path="/inventory" element={<Inventory />} />
+              <Route
+                path="/activity-logs"
+                element={
+                  <>
+                    <Navbar />
+                    <ActivityLogs />
+                  </>
+                }
+              />
             </Route>
             <Route
               path="*"

@@ -1,8 +1,15 @@
+import json
 from datetime import datetime, timezone
+
+from app.models.activity_log import ActivityLog
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.exc import IntegrityError
 
+from app.inventory import deduct_test_supplies
+
+from app.activity_hooks import RESULT_FIELDS, log_result_changes, snapshot_result
 from app.activity_logger import log_activity
 from app.database import get_db
 from app.dependencies import LAB_STAFF_ROLES, require_role
@@ -65,18 +72,25 @@ def create_test(
         collected_by_id=current_user.id,
         status=ResultStatus.PENDING,
     )
-    db.add(test)
-    db.commit()
+    try:
+        db.add(test)
+        db.flush()
+        deduct_test_supplies(db, test.test_name, test.id, current_user.id)
+        # Include the creation audit in the same transaction as stock consumption.
+        db.add(ActivityLog(
+            action="test_created", user_id=current_user.id,
+            resource_type="test", resource_id=str(test.id),
+            details=json.dumps({"test_name": test.test_name, "patient_id": test.patient_id}),
+        ))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise HTTPException(status.HTTP_409_CONFLICT, "Test conflicts with existing data")
+    except Exception:
+        db.rollback()
+        raise
     db.refresh(test)
 
-    log_activity(
-        db=db,
-        action="test_created",
-        user_id=current_user.id,
-        resource_type="test",
-        resource_id=str(test.id),
-        details={"test_name": test.test_name, "patient_id": test.patient_id},
-    )
     return test
 
 
@@ -141,6 +155,7 @@ def update_test(
     if test is None:
         raise not_found(f"Test with ID {test_id} not found")
 
+    before = snapshot_result(test)
     changes = body.model_dump(exclude_unset=True)
     # test_name and status are required columns, so an explicit null means "leave it alone"
     for required in ("test_name", "status"):
@@ -163,17 +178,24 @@ def update_test(
         test.results_received_datetime = datetime.now(timezone.utc)
         test.performed_by_id = current_user.id
 
+    # Result and status changes get their own entries (result_entered, result_updated,
+    # result_status_changed); other edits such as notes are logged as test_updated.
+    # Everything is logged in the same transaction as the change.
+    log_result_changes(db, current_user.id, test, before)
+    other_fields = [field for field in changes if field not in (*RESULT_FIELDS, "status")]
+    if other_fields:
+        log_activity(
+            db=db,
+            action="test_updated",
+            user_id=current_user.id,
+            resource_type="test",
+            resource_id=str(test.id),
+            details={"updated_fields": other_fields},
+            commit=False,
+        )
+
     db.commit()
     db.refresh(test)
-
-    log_activity(
-        db=db,
-        action="test_updated",
-        user_id=current_user.id,
-        resource_type="test",
-        resource_id=str(test.id),
-        details={"updated_fields": list(changes.keys())},
-    )
     return test
 
 

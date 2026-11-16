@@ -4,8 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 
-from app.activity_logger import log_activity
+from app.activity_hooks import INVENTORY_REMOVED, log_inventory_change
 from app.database import get_db
+from app.inventory import TEST_SUPPLIES
 from app.dependencies import LAB_MANAGER, LAB_STAFF_ROLES, SPECIMEN_COLLECTOR, require_role
 from app.models.inventory import InventoryItem
 from app.models.tests import Test
@@ -27,14 +28,6 @@ router = APIRouter(
 )
 
 LOW_STOCK_RATIO = 0.2
-
-# Supplies each test type needs: {test_name: {item_name: quantity_needed}}
-# Add an entry here when a new test type is offered.
-TEST_SUPPLIES: dict[str, dict[str, int]] = {
-    "Lipid Panel": {"Lipid Reagent Kit": 1, "Serum Tube": 1},
-    "Complete Blood Count": {"CBC Reagent Pack": 1, "EDTA Tube": 1},
-    "Urinalysis": {"Urine Test Strip": 1, "Urine Cup": 1},
-}
 
 
 @router.get("", response_model=list[InventoryItemResponse])
@@ -261,24 +254,9 @@ def delete_item(
     if item is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"Inventory item with ID {item_id} not found")
 
-    details = {
-        "reason": reason,
-        "item_name": item.item_name,
-        "batch_number": item.batch_number,
-        "lot_number": item.lot_number,
-        "quantity": item.quantity,
-        "expiration_date": str(item.expiration_date) if item.expiration_date else None,
-    }
+    # Log before deleting so the item's details are still readable; the removal
+    # and its log entry are committed together.
+    log_inventory_change(db, current_user.id, INVENTORY_REMOVED, item, reason=reason)
     db.delete(item)
     db.commit()
-
-    # log_activity stamps the time automatically
-    log_activity(
-        db=db,
-        action="inventory_removed",
-        user_id=current_user.id,
-        resource_type="inventory",
-        resource_id=str(item_id),
-        details=details,
-    )
     return None

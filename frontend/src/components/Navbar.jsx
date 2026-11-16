@@ -194,6 +194,20 @@ export default function Navbar() {
                       Unlock Accounts
                     </Link>
                   )}
+
+                  {isManager && (
+                    <Link
+                      to="/activity-logs"
+                      className="nav-link"
+                      style={
+                        location.pathname === '/activity-logs'
+                          ? { color: '#ffffff', fontWeight: 700, borderBottom: '2px solid #ab0520' }
+                          : {}
+                      }
+                    >
+                      Activity Logs
+                    </Link>
+                  )}
                 </>
               )}
             </div>
