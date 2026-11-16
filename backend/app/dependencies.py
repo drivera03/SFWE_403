@@ -19,6 +19,7 @@ SPECIMEN_COLLECTOR = "specimen_collector"
 # (patients and healthcare providers/physicians) are deliberately excluded.
 LAB_STAFF_ROLES = (
     LAB_MANAGER,
+    "manager",
     SPECIMEN_COLLECTOR,
     "technician",
     "lab_technician",
@@ -26,6 +27,7 @@ LAB_STAFF_ROLES = (
     "cashier",
     "billing",
 )
+
 
 
 def get_current_user(
@@ -113,6 +115,8 @@ def require_role(*roles: str | Iterable[str]):
     def role_checker(current_user: User = Depends(get_current_user)) -> User:
         user_role = getattr(current_user, "role", None) or ""
         normalized_allowed = {r.lower() for r in allowed_roles}
+        if "lab_manager" in normalized_allowed:
+            normalized_allowed.add("manager")
 
         if user_role not in allowed_roles and user_role.lower() not in normalized_allowed:
             raise HTTPException(

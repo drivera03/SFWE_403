@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.seed import seed_demo_users
 from contextlib import asynccontextmanager
 from app.models import user
-from app.routers import auth, patients, tests, inventory, activity_logs
+from app.routers import auth, patients, tests, inventory, maintenance, activity_logs
 
 def ensure_schema_columns():
     user_columns = [
@@ -96,4 +96,5 @@ app.include_router(auth.router)
 app.include_router(patients.router)
 app.include_router(tests.router)
 app.include_router(inventory.router)
+app.include_router(maintenance.router)
 app.include_router(activity_logs.router)

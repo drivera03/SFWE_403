@@ -1,3 +1,4 @@
+import json
 import os
 os.environ["DATABASE_URL"] = "sqlite://"
 os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-testing-32charsmin")
@@ -5,6 +6,7 @@ os.environ.setdefault("SECRET_KEY", "test-secret-key-for-unit-testing-32charsmin
 import unittest
 from datetime import date, datetime, timedelta
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -19,6 +21,8 @@ from app.models.activity_log import ActivityLog
 from app.models.inventory import InventoryItem
 from app.models.patient import Patient
 from app.models.tests import Instrument, Physician, SampleType, Test
+from app.notifications import emit_expiring_soon_notification, emit_low_stock_notification
+
 
 engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
 TestingSession = sessionmaker(bind=engine, autocommit=False, autoflush=False)
@@ -138,6 +142,153 @@ class TestInventory(unittest.TestCase):
     def test_delete_only_lab_manager(self):
         login_as("technician")
         self.assertEqual(self.client.delete("/inventory/2", params={"reason": "x"}).status_code, 403)
+
+    # ==========================================
+    # Ticket SXFT5-174: Low-stock notification tests
+    # ==========================================
+    def test_emit_low_stock_notification(self):
+        with patch("app.notifications.logger.warning") as mock_log:
+            event = emit_low_stock_notification(
+                item_id=10,
+                item_name="Lipid Reagent Kit",
+                quantity=1,
+                reorder_threshold=10,
+            )
+            self.assertEqual(event["event"], "low_stock")
+            self.assertEqual(event["item_id"], 10)
+            self.assertEqual(event["item_name"], "Lipid Reagent Kit")
+            self.assertEqual(event["quantity"], 1)
+            self.assertEqual(event["reorder_threshold"], 10)
+            self.assertEqual(event["recipient_role"], "lab_manager")
+            self.assertIn("Lipid Reagent Kit", event["message"])
+            self.assertIn("Lab Manager notified", event["message"])
+            mock_log.assert_called_once()
+
+    def test_low_stock_triggers_notification(self):
+        with patch("app.routers.inventory.emit_low_stock_notification") as mock_notify:
+            res = self.client.get("/inventory/low-stock")
+            self.assertEqual(res.status_code, 200)
+            # Item 1 is low stock
+            mock_notify.assert_called()
+            call_kwargs = mock_notify.call_args[1]
+            self.assertEqual(call_kwargs["item_name"], "Lipid Reagent Kit")
+            self.assertEqual(call_kwargs["quantity"], 1)
+
+    # ==========================================
+    # Ticket SXFT5-178: Expiring-soon notification tests
+    # ==========================================
+    def test_emit_expiring_soon_notification(self):
+        with patch("app.notifications.logger.warning") as mock_log:
+            event = emit_expiring_soon_notification(
+                item_id=5,
+                item_name="Serum Tube",
+                lot_number="LOT-B",
+                expiration_date=date(2026, 12, 1),
+                days_until_expiration=15,
+            )
+            self.assertEqual(event["event"], "expiring_soon")
+            self.assertEqual(event["item_id"], 5)
+            self.assertEqual(event["item_name"], "Serum Tube")
+            self.assertEqual(event["lot_number"], "LOT-B")
+            self.assertEqual(event["days_until_expiration"], 15)
+            self.assertEqual(event["recipient_role"], "lab_manager")
+            self.assertIn("Serum Tube", event["message"])
+            self.assertIn("Lab Manager notified", event["message"])
+            mock_log.assert_called_once()
+
+    def test_expiring_triggers_notification(self):
+        with patch("app.routers.inventory.emit_expiring_soon_notification") as mock_notify:
+            res = self.client.get("/inventory/expiring")
+            self.assertEqual(res.status_code, 200)
+            mock_notify.assert_called()
+            item_names = [call[1]["item_name"] for call in mock_notify.call_args_list]
+            self.assertIn("Serum Tube", item_names)
+            self.assertIn("Lipid Reagent Kit", item_names)
+
+    # ==========================================
+    # Ticket SXFT5-181: POST /inventory/receive tests
+    # ==========================================
+    def test_receive_new_item_creates_stock(self):
+        res = self.client.post(
+            "/inventory/receive",
+            json={
+                "item_name": "New Reagent Pack",
+                "quantity": 25,
+                "batch_number": "BATCH-001",
+                "lot_number": "LOT-NEW",
+                "expiration_date": "2027-01-15",
+                "reorder_threshold": 5,
+            },
+        )
+        self.assertEqual(res.status_code, 200)
+        body = res.json()
+        self.assertEqual(body["item_name"], "New Reagent Pack")
+        self.assertEqual(body["quantity"], 25)
+        self.assertEqual(body["lot_number"], "LOT-NEW")
+
+        # Verify in database
+        db = TestingSession()
+        item = db.query(InventoryItem).filter_by(lot_number="LOT-NEW").one()
+        self.assertEqual(item.quantity, 25)
+        self.assertEqual(str(item.expiration_date), "2027-01-15")
+        # Check activity log
+        log = db.query(ActivityLog).filter_by(action="inventory_received").first()
+        self.assertIsNotNone(log)
+        details = json.loads(log.details) if isinstance(log.details, str) else log.details
+        self.assertEqual(details["quantity_received"], 25)
+        db.close()
+
+    def test_receive_existing_item_by_lot_increments_stock(self):
+        # LOT-C has quantity 100 initially
+        res = self.client.post(
+            "/inventory/receive",
+            json={
+                "item_name": "EDTA Tube",
+                "lot_number": "LOT-C",
+                "quantity": 50,
+            },
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["quantity"], 150)
+
+        db = TestingSession()
+        item = db.query(InventoryItem).filter_by(lot_number="LOT-C").one()
+        self.assertEqual(item.quantity, 150)
+        db.close()
+
+    def test_receive_by_item_id_increments_stock(self):
+        # Item 1 has quantity 1 initially
+        res = self.client.post(
+            "/inventory/receive",
+            json={
+                "item_id": 1,
+                "item_name": "Lipid Reagent Kit",
+                "quantity": 10,
+            },
+        )
+        self.assertEqual(res.status_code, 200)
+        self.assertEqual(res.json()["quantity"], 11)
+
+    def test_receive_requires_positive_quantity(self):
+        res = self.client.post(
+            "/inventory/receive",
+            json={
+                "item_name": "Serum Tube",
+                "quantity": 0,
+            },
+        )
+        self.assertEqual(res.status_code, 422)
+
+    def test_receive_unauthorized_for_external_users(self):
+        for role in ("patient", "physician"):
+            with self.subTest(role=role):
+                login_as(role)
+                res = self.client.post(
+                    "/inventory/receive",
+                    json={"item_name": "Serum Tube", "quantity": 10},
+                )
+                self.assertEqual(res.status_code, 403)
+
 
 
 if __name__ == "__main__":
