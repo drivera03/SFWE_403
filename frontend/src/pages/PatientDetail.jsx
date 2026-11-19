@@ -3,11 +3,13 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getPatient, deletePatient } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import DeleteConfirmModal from '../components/DeleteConfirmModal';
+import PointOfSaleModal from '../components/PointOfSaleModal';
 
 export default function PatientDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { canDeletePatient } = useAuth();
+  const { canDeletePatient, currentUser } = useAuth() || {};
+  const isCashierOrManager = ['cashier', 'billing', 'lab_manager', 'manager'].includes(currentUser?.role?.toLowerCase());
 
   const [patient, setPatient] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -17,6 +19,7 @@ export default function PatientDetail() {
 
   // Modal and deletion states
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showPOSModal, setShowPOSModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState('');
   const [actionSuccess, setActionSuccess] = useState('');
@@ -181,6 +184,18 @@ export default function PatientDetail() {
 
         {/* Action Buttons: Edit Link & Conditional Delete */}
         <div className="header-actions-group">
+          {isCashierOrManager && (
+            <button
+              type="button"
+              className="btn btn-primary btn-icon-gap"
+              onClick={() => setShowPOSModal(true)}
+              style={{ background: '#059669', borderColor: '#059669' }}
+              title="Point of Sale payment & receipt generation"
+            >
+              <span>🧾 Checkout / Receipt</span>
+            </button>
+          )}
+
           {/* Link to patient edit form (Task 2 criteria) */}
           <Link
             to={`/patients/${patient.id}/edit`}
@@ -395,6 +410,13 @@ export default function PatientDetail() {
           setShowDeleteModal(false);
           setDeleteError('');
         }}
+      />
+
+      {/* Point of Sale Modal */}
+      <PointOfSaleModal
+        isOpen={showPOSModal}
+        onClose={() => setShowPOSModal(false)}
+        patient={patient}
       />
     </div>
   );

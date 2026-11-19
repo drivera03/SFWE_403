@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getPatient } from '../services/api';
 import { getTest, updateTest, deleteTest, apiErrorMessage } from '../services/tests';
+import BarcodePrintButton from '../components/BarcodePrintButton';
 
 export default function TestDetail() {
   const params = useParams();
@@ -259,7 +260,24 @@ export default function TestDetail() {
           </div>
         </div>
 
-        <div className="header-actions-group">
+        <div className="header-actions-group" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <BarcodePrintButton
+            testId={test.id}
+            barcodePrinted={test.barcode_printed}
+            barcode={test.barcode}
+            sampleId={test.sample_id}
+            testName={test.test_name}
+            patientName={patientDisplayName}
+            onPrinted={(data) => {
+              setTest((prev) => ({
+                ...prev,
+                barcode: data.barcode,
+                barcode_printed: true,
+                barcode_printed_at: data.barcode_printed_at,
+              }));
+            }}
+          />
+
           <button
             type="button"
             className="btn btn-danger btn-icon-gap"
@@ -338,6 +356,26 @@ export default function TestDetail() {
               <span className="info-label">Sample</span>
               <span className="info-value">
                 {test.sample_type} • <code className="policy-code">{test.sample_id}</code>
+              </span>
+            </div>
+
+            <div className="info-item">
+              <span className="info-label">Sample Barcode</span>
+              <span className="info-value">
+                {test.barcode ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <code className="policy-code" style={{ background: '#e0f2fe', color: '#0369a1', fontWeight: 700 }}>
+                      {test.barcode}
+                    </code>
+                    <span style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>
+                      (Printed {test.barcode_printed_at ? new Date(test.barcode_printed_at).toLocaleDateString() : '✓'})
+                    </span>
+                  </span>
+                ) : (
+                  <span style={{ color: '#64748b', fontSize: '0.85rem' }}>
+                    Not yet printed (One-time print available to Specimen Collectors)
+                  </span>
+                )}
               </span>
             </div>
 

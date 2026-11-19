@@ -5,6 +5,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.activity_hooks import INVENTORY_REMOVED, log_inventory_change
+from app.activity_logger import log_activity
 from app.database import get_db
 from app.inventory import TEST_SUPPLIES
 from app.dependencies import LAB_MANAGER, LAB_STAFF_ROLES, SPECIMEN_COLLECTOR, require_role

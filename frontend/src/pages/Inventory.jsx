@@ -4,6 +4,7 @@ import LowStockBanner from '../components/LowStockBanner';
 import ExpiringSoonAlert from '../components/ExpiringSoonAlert';
 import LotLookup from '../components/LotLookup';
 import InventoryRemovalForm from '../components/InventoryRemovalForm';
+import HL7ImportModal from '../components/HL7ImportModal';
 import { getInventory, receiveSupplies, getLowStock, getExpiring } from '../services/inventory';
 import { getInstruments } from '../services/tests';
 import '../styles/patients.css';
@@ -19,6 +20,7 @@ export default function Inventory() {
   // Modals
   const [isRemovalModalOpen, setIsRemovalModalOpen] = useState(false);
   const [itemToRemove, setItemToRemove] = useState(null);
+  const [isHL7ModalOpen, setIsHL7ModalOpen] = useState(false);
 
   const [isReceiveModalOpen, setIsReceiveModalOpen] = useState(false);
   const [receiveItem, setReceiveItem] = useState(null);
@@ -192,6 +194,15 @@ export default function Inventory() {
               style={{ background: '#059669', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
             >
               <span>📥</span> Receive Supplies
+            </button>
+            <button
+              type="button"
+              className="btn-register"
+              onClick={() => setIsHL7ModalOpen(true)}
+              style={{ background: '#0284c7', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+              title="Import HL7-lite automated analyzer results"
+            >
+              <span>🧬</span> Import Analyzer Results
             </button>
             <button
               type="button"
@@ -846,6 +857,15 @@ export default function Inventory() {
             </div>
           </div>
         )}
+
+        {/* HL7 Analyzer Import Modal */}
+        <HL7ImportModal
+          isOpen={isHL7ModalOpen}
+          onClose={() => setIsHL7ModalOpen(false)}
+          onImportComplete={() => {
+            setRefreshKey((k) => k + 1);
+          }}
+        />
       </div>
     </div>
   );

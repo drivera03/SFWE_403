@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { getPatient } from '../services/api';
 import { getPatientTests, createTest, getPhysicians, makeAccessionId, apiErrorMessage } from '../services/tests';
+import BarcodePrintButton from '../components/BarcodePrintButton';
 
 const STATUS_FILTER_OPTIONS = [
   { value: 'all', label: 'All Statuses' },
@@ -361,13 +362,33 @@ export default function PatientTests() {
                       : '—'}
                   </td>
                   <td style={{ textAlign: 'right' }}>
-                    <Link
-                      to={`/patients/${patientId}/tests/${test.id}`}
-                      className="btn btn-secondary btn-sm"
-                      id={`view-test-${test.id}-btn`}
-                    >
-                      View Details →
-                    </Link>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
+                      <BarcodePrintButton
+                        testId={test.id}
+                        barcodePrinted={test.barcode_printed}
+                        barcode={test.barcode}
+                        sampleId={test.sample_id}
+                        testName={test.test_name}
+                        patientName={patientDisplayName}
+                        size="small"
+                        onPrinted={(data) => {
+                          setTests((prev) =>
+                            prev.map((t) =>
+                              t.id === test.id
+                                ? { ...t, barcode: data.barcode, barcode_printed: true, barcode_printed_at: data.barcode_printed_at }
+                                : t
+                            )
+                          );
+                        }}
+                      />
+                      <Link
+                        to={`/patients/${patientId}/tests/${test.id}`}
+                        className="btn btn-secondary btn-sm"
+                        id={`view-test-${test.id}-btn`}
+                      >
+                        View Details →
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

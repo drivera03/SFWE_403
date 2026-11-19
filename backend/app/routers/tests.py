@@ -11,12 +11,17 @@ from app.inventory import deduct_test_supplies
 
 from app.activity_hooks import RESULT_FIELDS, log_result_changes, snapshot_result
 from app.activity_logger import log_activity
+from app.barcode import format_barcode_payload, generate_sample_barcode
+from app.hl7_matcher import merge_hl7_results
+from app.hl7_parser import parse_hl7_lite
 from app.database import get_db
-from app.dependencies import LAB_STAFF_ROLES, require_role
+from app.dependencies import LAB_STAFF_ROLES, SPECIMEN_COLLECTOR, require_role
 from app.models.patient import Patient
 from app.models.tests import Instrument, Physician, ResultStatus, Test
 from app.models.user import User
 from app.schemas.test import (
+    BarcodeResponse,
+    HL7ImportRequest,
     InstrumentResponse,
     PhysicianCreate,
     PhysicianResponse,
@@ -199,6 +204,71 @@ def update_test(
     return test
 
 
+@router.post(
+    "/{test_id}/generate-barcode",
+    response_model=BarcodeResponse,
+    status_code=status.HTTP_200_OK,
+)
+def generate_barcode(
+    test_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(SPECIMEN_COLLECTOR)),
+):
+    """Generate and print unique barcode for specimen tube (SXFT5-162, SXFT5-172).
+
+    Only specimen collectors may generate/print sample barcodes.
+    Enforces one-time print policy: subsequent requests for the same test return 409 Conflict.
+    """
+    test = db.get(Test, test_id)
+    if test is None:
+        raise not_found(f"Test with ID {test_id} not found")
+
+    if test.barcode_printed:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"Barcode has already been generated and printed for test {test_id} (one-time print only)",
+        )
+
+    # Generate unique barcode if not yet assigned
+    if not test.barcode:
+        st_val = (
+            test.sample_type.value
+            if hasattr(test.sample_type, "value")
+            else str(test.sample_type)
+        )
+        test.barcode = generate_sample_barcode(
+            sample_id=test.sample_id,
+            sample_type=st_val,
+            test_id=test.id,
+        )
+
+    test.barcode_printed = True
+    test.barcode_printed_at = datetime.now(timezone.utc)
+    test.barcode_printed_by_id = current_user.id
+
+    db.add(test)
+    log_activity(
+        db=db,
+        action="barcode_printed",
+        user_id=current_user.id,
+        resource_type="test",
+        resource_id=str(test.id),
+        details={
+            "barcode": test.barcode,
+            "sample_id": test.sample_id,
+            "test_name": test.test_name,
+            "patient_id": test.patient_id,
+        },
+        commit=False,
+    )
+    db.commit()
+    db.refresh(test)
+
+    payload = format_barcode_payload(test)
+    payload["message"] = "Barcode generated and printed successfully (one-time print recorded)."
+    return payload
+
+
 @router.delete("/{test_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_test(
     test_id: int,
@@ -223,3 +293,38 @@ def delete_test(
         details={"test_name": test_name, "patient_id": patient_id},
     )
     return None
+
+
+@router.post("/hl7/parse")
+def parse_hl7_text(
+    payload: HL7ImportRequest,
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
+):
+    """Parse HL7-lite .txt format content into structured records without database changes (SXFT5-184)."""
+    records = parse_hl7_lite(payload.raw_content)
+    return {
+        "record_count": len(records),
+        "records": [r.to_dict() for r in records],
+    }
+
+
+@router.post("/hl7/import")
+def import_hl7_results(
+    payload: HL7ImportRequest,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role(*LAB_STAFF_ROLES)),
+):
+    """Parse and merge HL7-lite analyzer results into Test records (SXFT5-184, SXFT5-189).
+
+    Matches by barcode/sample_id, updates test status to completed, handles duplicates,
+    and logs every modification.
+    """
+    records = parse_hl7_lite(payload.raw_content)
+    if not records:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="No valid HL7-lite result records found in the provided text.",
+        )
+
+    summary = merge_hl7_results(db, records, current_user.id)
+    return summary

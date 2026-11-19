@@ -51,10 +51,17 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  height: 72px;
+  min-height: 64px;
   max-width: 1440px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 16px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 900px) {
+  .alerts-btn-label {
+    display: none;
+  }
 }
 
 .patient-page .logo {
