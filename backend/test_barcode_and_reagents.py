@@ -276,6 +276,33 @@ class TestBarcodeAndReagentsQA(unittest.TestCase):
         })
         self.assertEqual(res2.status_code, 201)
 
+    def test_get_barcode_before_generation_returns_404(self):
+        """GET /tests/{id}/barcode returns 404 if barcode has not been generated yet."""
+        test_id = self._create_sample_test("RPT-QA-GET-01", "SMP-QA-GET-01")
+        res = self.client.get(f"/tests/{test_id}/barcode")
+        self.assertEqual(res.status_code, 404)
+        self.assertIn("not been generated", res.json()["detail"].lower())
+
+    def test_get_barcode_after_generation_allows_repeated_viewing(self):
+        """GET /tests/{id}/barcode returns 200 and can be retrieved repeatedly for reprinting."""
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(id=2, email="collector@clms.local", role="specimen_collector")
+        test_id = self._create_sample_test("RPT-QA-GET-02", "SMP-QA-GET-02")
+
+        # Initial generate
+        post_res = self.client.post(f"/tests/{test_id}/generate-barcode")
+        self.assertEqual(post_res.status_code, 200)
+        expected_barcode = post_res.json()["barcode"]
+
+        # First retrieval
+        get_res1 = self.client.get(f"/tests/{test_id}/barcode")
+        self.assertEqual(get_res1.status_code, 200)
+        self.assertEqual(get_res1.json()["barcode"], expected_barcode)
+
+        # Second retrieval (repeated view / reprint)
+        get_res2 = self.client.get(f"/tests/{test_id}/barcode")
+        self.assertEqual(get_res2.status_code, 200)
+        self.assertEqual(get_res2.json()["barcode"], expected_barcode)
+
 
 if __name__ == "__main__":
     unittest.main()

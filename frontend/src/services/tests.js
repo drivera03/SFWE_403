@@ -71,6 +71,11 @@ export const generateBarcode = async (testId) => {
   return res.data;
 };
 
+export const getTestBarcode = async (testId) => {
+  const res = await api.get(`/tests/${testId}/barcode`);
+  return res.data;
+};
+
 export const parseHL7Text = async (rawContent) => {
   const res = await api.post('/tests/hl7/parse', { raw_content: rawContent });
   return res.data;

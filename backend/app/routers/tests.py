@@ -15,7 +15,7 @@ from app.barcode import format_barcode_payload, generate_sample_barcode
 from app.hl7_matcher import merge_hl7_results
 from app.hl7_parser import parse_hl7_lite
 from app.database import get_db
-from app.dependencies import LAB_STAFF_ROLES, SPECIMEN_COLLECTOR, require_role
+from app.dependencies import LAB_STAFF_ROLES, SPECIMEN_COLLECTOR, get_current_user, require_role
 from app.models.patient import Patient
 from app.models.tests import Instrument, Physician, ResultStatus, Test
 from app.models.user import User
@@ -266,6 +266,36 @@ def generate_barcode(
 
     payload = format_barcode_payload(test)
     payload["message"] = "Barcode generated and printed successfully (one-time print recorded)."
+    return payload
+
+
+@router.get(
+    "/{test_id}/barcode",
+    response_model=BarcodeResponse,
+    status_code=status.HTTP_200_OK,
+)
+def get_barcode(
+    test_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """View generated barcode label for specimen tube (safe to call repeatedly).
+
+    Enables specimen collectors and laboratory personnel to re-inspect or reprint
+    the specimen tube barcode label if it was not printed initially.
+    """
+    test = db.get(Test, test_id)
+    if test is None:
+        raise not_found(f"Test with ID {test_id} not found")
+
+    if not test.barcode and not test.barcode_printed:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Barcode has not been generated for test {test_id} yet.",
+        )
+
+    payload = format_barcode_payload(test)
+    payload["message"] = "Barcode label retrieved successfully."
     return payload
 
 
