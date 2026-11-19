@@ -27,6 +27,7 @@ export default function BarcodePrintButton({
   const [error, setError] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [printData, setPrintData] = useState(null);
+  const [copiedType, setCopiedType] = useState(null); // 'analyzer' | 'barcode' | null
 
   useEffect(() => {
     setIsPrinted(Boolean(barcodePrinted));
@@ -103,6 +104,47 @@ export default function BarcodePrintButton({
 
   const handleBrowserPrint = () => {
     window.print();
+  };
+
+  const getAnalyzerLine = () => {
+    const code = currentBarcode || printData?.barcode || 'BC-SMP-001';
+    const name = testName || printData?.test_name || 'CBC';
+    const upper = name.toUpperCase();
+    let val = '14.2';
+    let unit = 'g/dL';
+    if (upper.includes('LIPID') || upper.includes('CHOLESTEROL')) {
+      val = '185.0';
+      unit = 'mg/dL';
+    } else if (upper.includes('GLUCOSE')) {
+      val = '95.0';
+      unit = 'mg/dL';
+    } else if (upper.includes('URINE') || upper.includes('UA')) {
+      val = '1.015';
+      unit = 'SG';
+    } else if (upper.includes('CBC') || upper.includes('BLOOD')) {
+      val = '14.2';
+      unit = 'g/dL';
+    }
+    return `BARCODE|${code}|${name}|${val}|${unit}|completed|Automated analyzer run`;
+  };
+
+  const copyToClipboard = async (text, type) => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopiedType(type);
+      setTimeout(() => setCopiedType(null), 2500);
+    } catch (err) {
+      console.warn('Clipboard write failed:', err);
+    }
   };
 
   // Generate SVG barcode representation (Code-128 / stripes pattern)
@@ -240,11 +282,13 @@ export default function BarcodePrintButton({
             style={{
               background: '#ffffff',
               borderRadius: '12px',
-              maxWidth: '460px',
+              maxWidth: '480px',
               width: '100%',
               padding: '24px',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
               position: 'relative',
+              maxHeight: '92vh',
+              overflowY: 'auto',
             }}
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
@@ -290,8 +334,27 @@ export default function BarcodePrintButton({
               {/* Barcode Graphic */}
               <div style={{ margin: '10px 0', background: '#ffffff', padding: '8px', borderRadius: '4px', border: '1px solid #e2e8f0' }}>
                 {renderBarcodePattern(currentBarcode || printData?.barcode)}
-                <div style={{ fontFamily: 'monospace', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', letterSpacing: '2px', marginTop: '4px' }}>
-                  {currentBarcode || printData?.barcode}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '6px' }}>
+                  <span style={{ fontFamily: 'monospace', fontSize: '0.95rem', fontWeight: 700, color: '#0f172a', letterSpacing: '2px' }}>
+                    {currentBarcode || printData?.barcode}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(currentBarcode || printData?.barcode, 'barcode')}
+                    title="Copy barcode text"
+                    style={{
+                      background: copiedType === 'barcode' ? '#dcfce7' : '#f1f5f9',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '4px',
+                      padding: '2px 8px',
+                      fontSize: '0.72rem',
+                      fontWeight: 600,
+                      color: copiedType === 'barcode' ? '#15803d' : '#475569',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {copiedType === 'barcode' ? '✓ Copied' : '📋 Copy'}
+                  </button>
                 </div>
               </div>
 
@@ -312,6 +375,66 @@ export default function BarcodePrintButton({
 
               <div style={{ marginTop: '8px', fontSize: '0.7rem', color: '#64748b', borderTop: '1px solid #e2e8f0', paddingTop: '6px' }}>
                 {printData?.barcode_printed_at ? `Generated/Printed: ${new Date(printData.barcode_printed_at).toLocaleString()}` : `Generated: ${new Date().toLocaleString()}`} • Authorized Specimen Tube Label
+              </div>
+            </div>
+
+            {/* Analyzer Import (HL7-lite) Format Box */}
+            <div
+              style={{
+                background: '#f8fafc',
+                border: '1px solid #e2e8f0',
+                borderRadius: '8px',
+                padding: '12px',
+                marginBottom: '16px',
+                textAlign: 'left',
+              }}
+            >
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#1e293b', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                  <span>🧬</span> Format for Analyzer Import:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => copyToClipboard(getAnalyzerLine(), 'analyzer')}
+                  id="copy-analyzer-line-btn"
+                  title="Copy formatted line to paste into Inventory > Import Analyzer Results"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    padding: '4px 10px',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    borderRadius: '5px',
+                    border: '1px solid #0284c7',
+                    background: copiedType === 'analyzer' ? '#16a34a' : '#0284c7',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>{copiedType === 'analyzer' ? '✓ Copied to Clipboard!' : '📋 Copy for Analyzer'}</span>
+                </button>
+              </div>
+
+              <div
+                style={{
+                  background: '#ffffff',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '4px',
+                  padding: '7px 10px',
+                  fontFamily: 'monospace',
+                  fontSize: '0.76rem',
+                  color: '#0f172a',
+                  wordBreak: 'break-all',
+                  userSelect: 'all',
+                }}
+              >
+                {getAnalyzerLine()}
+              </div>
+
+              <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '6px' }}>
+                💡 <em>Paste directly into <strong>Inventory &gt; Import Analyzer Results</strong> to match and complete this test automatically.</em>
               </div>
             </div>
 
