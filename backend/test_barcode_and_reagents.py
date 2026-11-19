@@ -243,6 +243,39 @@ class TestBarcodeAndReagentsQA(unittest.TestCase):
         self.assertEqual(details["sample_id"], "SMP-QA-04")
         db.close()
 
+    def test_cbc_alias_intake_supported(self):
+        """Test intake with aliases 'CBC' and 'Complete Blood Count (CBC)' deduct supplies correctly."""
+        db = TestingSession()
+        pack = InventoryItem(item_name="CBC Reagent Pack", quantity=10)
+        tube = InventoryItem(item_name="EDTA Tube", quantity=10)
+        db.add_all([pack, tube])
+        db.commit()
+        db.close()
+
+        # 1. Test with 'CBC'
+        res1 = self.client.post("/tests", json={
+            "report_id": "RPT-CBC-01",
+            "patient_id": self.patient_id,
+            "physician_id": self.physician_id,
+            "sample_type": "blood",
+            "sample_id": "SMP-CBC-01",
+            "collection_datetime": "2026-11-18T12:00:00",
+            "test_name": "CBC",
+        })
+        self.assertEqual(res1.status_code, 201)
+
+        # 2. Test with 'Complete Blood Count (CBC)'
+        res2 = self.client.post("/tests", json={
+            "report_id": "RPT-CBC-02",
+            "patient_id": self.patient_id,
+            "physician_id": self.physician_id,
+            "sample_type": "blood",
+            "sample_id": "SMP-CBC-02",
+            "collection_datetime": "2026-11-18T12:00:00",
+            "test_name": "Complete Blood Count (CBC)",
+        })
+        self.assertEqual(res2.status_code, 201)
+
 
 if __name__ == "__main__":
     unittest.main()
