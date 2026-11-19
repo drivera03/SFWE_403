@@ -49,6 +49,11 @@ export const loginUser = async (email, password) => {
   return res.data;
 };
 
+export const switchRoleAPI = async (role) => {
+  const res = await api.post('/auth/switch-role', { role });
+  return res.data;
+};
+
 export const registerUser = async (userData) => {
   const res = await api.post('/auth/register', userData);
   return res.data;

@@ -11,6 +11,7 @@ from app.dependencies import get_current_user, require_role
 from app.models.user import User
 from app.schemas.auth import (
     LoginRequest,
+    SwitchRoleRequest,
     TokenResponse,
     RegisterRequest,
     SignupRequest,
@@ -139,6 +140,24 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
     reset_failed_logins(db, user)
     return TokenResponse(access_token=create_access_token(str(user.id), user.role))
+
+
+@router.post("/switch-role", response_model=TokenResponse)
+def switch_active_role(
+    body: SwitchRoleRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Dev/testing utility to switch active persona role and issue an updated token with the target role."""
+    new_role = body.role.lower().strip()
+    # If user exists in DB, update their role as well so db-based queries see the role
+    db_user = db.get(User, current_user.id)
+    if db_user:
+        db_user.role = new_role
+        db.commit()
+        db.refresh(db_user)
+
+    return TokenResponse(access_token=create_access_token(str(current_user.id), new_role))
 
 
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
