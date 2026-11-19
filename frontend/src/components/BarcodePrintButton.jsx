@@ -147,97 +147,71 @@ export default function BarcodePrintButton({
   return (
     <>
       <div style={{ display: 'inline-flex', flexDirection: 'column', gap: '4px' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-          {isPrinted ? (
-            <>
-              <button
-                type="button"
-                disabled
-                title="Barcode generation is one-time use only (policy enforced)."
-                id={`barcode-print-btn-${testId}`}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  padding: size === 'small' ? '4px 8px' : '6px 12px',
-                  fontSize: size === 'small' ? '0.78rem' : '0.85rem',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  border: '1px solid #cbd5e1',
-                  background: '#f1f5f9',
-                  color: '#64748b',
-                  cursor: 'not-allowed',
-                }}
-              >
-                <span style={{ fontSize: '0.95rem', color: '#16a34a' }}>✓</span>
-                <span>Barcode Printed (Disabled)</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={handleViewBarcode}
-                id={`barcode-view-btn-${testId}`}
-                title="View barcode label again and send to printer"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '5px',
-                  padding: size === 'small' ? '4px 9px' : '6px 12px',
-                  fontSize: size === 'small' ? '0.78rem' : '0.85rem',
-                  fontWeight: 600,
-                  borderRadius: '6px',
-                  border: '1px solid #0284c7',
-                  background: '#f0f9ff',
-                  color: '#0369a1',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <span>👁️</span>
-                <span>{size === 'small' ? 'View' : 'View Barcode'}</span>
-              </button>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={loading || !isCollector}
-              title={
-                !isCollector
-                  ? 'Only Specimen Collectors may print sample barcodes.'
-                  : 'Print specimen tube barcode label (one-time use)'
-              }
-              id={`barcode-print-btn-${testId}`}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: size === 'small' ? '4px 8px' : '6px 14px',
-                fontSize: size === 'small' ? '0.78rem' : '0.85rem',
-                fontWeight: 600,
-                borderRadius: '6px',
-                border: '1px solid #0284c7',
-                background: loading ? '#93c5fd' : '#0284c7',
-                color: '#ffffff',
-                cursor: !isCollector ? 'not-allowed' : 'pointer',
-                transition: 'all 0.15s ease',
-                opacity: !isCollector ? 0.65 : 1,
-              }}
-            >
-              {loading ? (
-                <>
-                  <span className="spinner-small" style={{ width: '12px', height: '12px' }} />
-                  <span>Generating...</span>
-                </>
-              ) : (
-                <>
-                  <span style={{ fontSize: '1rem' }}>🖨️</span>
-                  <span>Print Barcode</span>
-                </>
-              )}
-            </button>
-          )}
-        </div>
+        {isPrinted ? (
+          <button
+            type="button"
+            onClick={handleViewBarcode}
+            id={`barcode-print-btn-${testId}`}
+            title="Barcode already generated. Click to view label or print again."
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: size === 'small' ? '4px 10px' : '6px 14px',
+              fontSize: size === 'small' ? '0.78rem' : '0.85rem',
+              fontWeight: 600,
+              borderRadius: '6px',
+              border: '1px solid #0284c7',
+              background: '#f0f9ff',
+              color: '#0369a1',
+              cursor: 'pointer',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>👁️</span>
+            <span>View Barcode</span>
+            <span style={{ fontSize: '0.85rem', color: '#16a34a', marginLeft: '2px' }}>✓</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handlePrint}
+            disabled={loading || !isCollector}
+            title={
+              !isCollector
+                ? 'Only Specimen Collectors may print sample barcodes.'
+                : 'Print specimen tube barcode label (one-time generation)'
+            }
+            id={`barcode-print-btn-${testId}`}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: size === 'small' ? '4px 8px' : '6px 14px',
+              fontSize: size === 'small' ? '0.78rem' : '0.85rem',
+              fontWeight: 600,
+              borderRadius: '6px',
+              border: '1px solid #0284c7',
+              background: loading ? '#93c5fd' : '#0284c7',
+              color: '#ffffff',
+              cursor: !isCollector ? 'not-allowed' : 'pointer',
+              transition: 'all 0.15s ease',
+              opacity: !isCollector ? 0.65 : 1,
+            }}
+          >
+            {loading ? (
+              <>
+                <span className="spinner-small" style={{ width: '12px', height: '12px' }} />
+                <span>Generating...</span>
+              </>
+            ) : (
+              <>
+                <span style={{ fontSize: '1rem' }}>🖨️</span>
+                <span>Print Barcode</span>
+              </>
+            )}
+          </button>
+        )}
 
         {error && (
           <span style={{ fontSize: '0.72rem', color: '#b91c1c', maxWidth: '240px' }}>
