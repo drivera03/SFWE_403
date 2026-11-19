@@ -403,70 +403,8 @@ export default function Navbar() {
                 </button>
               </div>
             ) : (
-                    outline: 'none',
-                    cursor: 'pointer',
-                  }}
-                  title="Switch active role persona"
-                >
-                  {roles.map((r) => (
-                    <option key={r.id} value={r.id} style={{ color: '#0f172a' }}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            {/* User Info & Logout */}
-            {isAuthenticated && currentUser ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    background: 'rgba(255,255,255,0.12)',
-                    padding: '4px 10px',
-                    borderRadius: '6px',
-                    border: '1px solid rgba(255,255,255,0.2)',
-                  }}
-                >
-                  <span style={{ fontSize: '0.825rem', color: 'rgba(255,255,255,0.95)', fontWeight: 500 }}>
-                    {currentUser.email || currentUser.username}
-                  </span>
-                  <span
-                    className="role-tag"
-                    style={{
-                      background: 'rgba(255,255,255,0.25)',
-                      padding: '2px 6px',
-                      borderRadius: '4px',
-                      fontSize: '0.7rem',
-                      textTransform: 'capitalize',
-                      color: '#ffffff',
-                      fontWeight: 600,
-                    }}
-                  >
-                    {currentUser.role}
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  className="btn btn-red"
-                  style={{
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontSize: '0.825rem',
-                    padding: '6px 14px',
-                  }}
-                  onClick={handleSignOut}
-                >
-                  Sign out
-                </button>
-              </div>
-            ) : (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Link to="/signup" className="nav-link" style={{ fontSize: '0.9rem' }}>
+                <Link to="/signup" className="nav-link" style={{ fontSize: '0.85rem' }}>
                   Create account
                 </Link>
                 <Link
@@ -475,8 +413,8 @@ export default function Navbar() {
                   style={{
                     border: 'none',
                     cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    padding: '7px 16px',
+                    fontSize: '0.82rem',
+                    padding: '6px 14px',
                     textDecoration: 'none',
                   }}
                 >
