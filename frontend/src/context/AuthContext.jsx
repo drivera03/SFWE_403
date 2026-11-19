@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useCallback, useEffect, useMemo, useState } from 'react';
-import { loginUser, getMe } from '../services/api';
+import { loginUser, getMe, switchRoleAPI } from '../services/api';
 
 export const AuthContext = createContext(null);
 
@@ -69,7 +69,7 @@ export function AuthProvider({ children }) {
   }, [currentUser]);
 
   // Quick switch role utility (enables testing criteria: "Verified by logging in as each role")
-  const switchRole = useCallback((role) => {
+  const switchRole = useCallback(async (role) => {
     const roleProfiles = {
       lab_manager: { id: 1, username: 'lab_manager', email: 'manager@clms.local', role: 'lab_manager' },
       specimen_collector: { id: 2, username: 'specimen_collector', email: 'collector@clms.local', role: 'specimen_collector' },
@@ -81,6 +81,18 @@ export function AuthProvider({ children }) {
 
     const target = roleProfiles[role] || { id: 99, username: role, email: `${role}@clms.local`, role };
     setCurrentUser(target);
+    localStorage.setItem('clms_user', JSON.stringify(target));
+
+    try {
+      const data = await switchRoleAPI(role);
+      if (data?.access_token) {
+        setToken(data.access_token);
+        localStorage.setItem('clms_token', data.access_token);
+        localStorage.setItem('token', data.access_token);
+      }
+    } catch (err) {
+      console.warn('Backend switch-role sync note:', err.message);
+    }
   }, []);
 
   const login = useCallback(async (email, password) => {

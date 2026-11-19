@@ -12,7 +12,11 @@ from app.security import password_hash
 # TEMPORARY: demo accounts for development. Remove once real accounts exist.
 DEMO_USERS = [
     ("tech@example.com", "technician", "changeme123"),
+    ("collector@example.com", "specimen_collector", "changeme123"),
     ("mason@example.com", "lab_manager", "password456"),
+    ("cashier@example.com", "cashier", "changeme123"),
+    ("pathologist@example.com", "pathologist", "changeme123"),
+    ("billing@example.com", "billing", "changeme123"),
 ]
 
 DEMO_PHYSICIANS = [

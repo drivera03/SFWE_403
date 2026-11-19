@@ -5,6 +5,7 @@ from decimal import Decimal
 from app.models.user import User
 from app.models.patient import Patient
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     Date,
     DateTime,
@@ -85,6 +86,10 @@ class Test(Base):
         Enum(SampleType, name="sample_type", values_callable=enum_values)
     )
     sample_id: Mapped[str] = mapped_column(String(50), unique=True, index=True)
+    barcode: Mapped[str | None] = mapped_column(String(100), unique=True, index=True, nullable=True)
+    barcode_printed: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    barcode_printed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    barcode_printed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     collection_datetime: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     collected_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     performed_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"))
@@ -117,3 +122,4 @@ class Test(Base):
     instrument: Mapped[Instrument | None] = relationship()
     collected_by: Mapped["User"] = relationship(foreign_keys=[collected_by_id])
     performed_by: Mapped["User | None"] = relationship(foreign_keys=[performed_by_id])
+    barcode_printed_by: Mapped["User | None"] = relationship(foreign_keys=[barcode_printed_by_id])

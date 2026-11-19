@@ -66,6 +66,42 @@ export const getInstruments = async () => {
   ];
 };
 
+export const generateBarcode = async (testId) => {
+  const res = await api.post(`/tests/${testId}/generate-barcode`);
+  return res.data;
+};
+
+export const getTestBarcode = async (testId) => {
+  const res = await api.get(`/tests/${testId}/barcode`);
+  return res.data;
+};
+
+export const parseHL7Text = async (rawContent) => {
+  const res = await api.post('/tests/hl7/parse', { raw_content: rawContent });
+  return res.data;
+};
+
+export const importHL7Results = async (rawContent) => {
+  const res = await api.post('/tests/hl7/import', { raw_content: rawContent });
+  return res.data;
+};
+
+export const createPurchase = async (purchaseData) => {
+  const res = await api.post('/purchases', purchaseData);
+  return res.data;
+};
+
+export const getPurchaseReceipt = async (purchaseId) => {
+  const res = await api.get(`/purchases/${purchaseId}`);
+  return res.data;
+};
+
+export const listPurchases = async (patientId = null) => {
+  const params = patientId ? { patient_id: patientId } : {};
+  const res = await api.get('/purchases', { params });
+  return res.data;
+};
+
 // e.g. makeAccessionId('SMP') -> "SMP-481902"
 export const makeAccessionId = (prefix) => `${prefix}-${Math.floor(100000 + Math.random() * 900000)}`;
 

@@ -5,8 +5,9 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session, selectinload
 
 from app.activity_hooks import INVENTORY_REMOVED, log_inventory_change
+from app.activity_logger import log_activity
 from app.database import get_db
-from app.inventory import TEST_SUPPLIES
+from app.inventory import TEST_SUPPLIES, get_test_supplies
 from app.dependencies import LAB_MANAGER, LAB_STAFF_ROLES, SPECIMEN_COLLECTOR, require_role
 from app.models.inventory import InventoryItem
 from app.models.tests import Test
@@ -192,7 +193,7 @@ def check_availability(
 
     ConOps 6.3.3: only specimen collectors may check reagent availability.
     """
-    needed_items = TEST_SUPPLIES.get(test_name)
+    needed_items = get_test_supplies(test_name)
     if needed_items is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"No supply list for test '{test_name}'")
 

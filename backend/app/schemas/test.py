@@ -53,6 +53,9 @@ class TestResponse(BaseModel):
     physician_id: int
     sample_type: SampleType
     sample_id: str
+    barcode: str | None = None
+    barcode_printed: bool = False
+    barcode_printed_at: datetime | None = None
     collection_datetime: datetime
     collected_by_id: int
     performed_by_id: int | None = None
@@ -71,6 +74,23 @@ class TestResponse(BaseModel):
     notes: str | None = None
     physician: PhysicianResponse | None = None
     instrument: InstrumentResponse | None = None
+
+
+class BarcodeResponse(BaseModel):
+    test_id: int
+    barcode: str
+    sample_id: str
+    sample_type: str
+    test_name: str
+    patient_id: int
+    report_id: str
+    barcode_printed: bool
+    barcode_printed_at: str | None = None
+    message: str
+
+
+class HL7ImportRequest(BaseModel):
+    raw_content: str
 
 
 class TestUpdate(BaseModel):

@@ -91,6 +91,11 @@ def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # If the token contains a verified role claim, use it for the active session context
+    token_role = payload.get("role")
+    if token_role:
+        user.role = token_role
+
     return user
 
 

@@ -84,45 +84,68 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="nav" style={{ position: 'sticky', top: 0, zIndex: 100 }}>
+      <nav className="nav" style={{ position: 'sticky', top: 0, zIndex: 100, width: '100%', background: 'var(--navy)' }}>
         <div
           className="container nav-inner"
           style={{
             maxWidth: '1440px',
-            padding: '0 24px',
-            height: '72px',
+            width: '100%',
+            padding: '0 16px',
+            minHeight: '64px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            gap: '16px',
+            gap: '12px',
+            flexWrap: 'nowrap',
           }}
         >
           {/* Left: Brand Logo & Main Nav Links */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '24px', flexShrink: 0 }}>
-            <Link to="/" className="logo" style={{ textDecoration: 'none' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '16px',
+              minWidth: 0,
+              flex: '1 1 auto',
+              overflowX: 'auto',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
+          >
+            <Link to="/" className="logo" style={{ textDecoration: 'none', flexShrink: 0 }}>
               <span className="logo-icon">
-                <BeakerIcon size={22} />
+                <BeakerIcon size={20} />
               </span>
-              <span className="logo-text">CLMS</span>
+              <span className="logo-text" style={{ fontSize: '1.25rem' }}>CLMS</span>
             </Link>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
+              }}
+            >
               {!isAuthenticated ? (
                 <>
-                  <Link to="/#features" className="nav-link">Features</Link>
-                  <Link to="/#how" className="nav-link">How it works</Link>
-                  <Link to="/#roles" className="nav-link">Roles</Link>
+                  <Link to="/#features" className="nav-link" style={{ padding: '5px 8px', fontSize: '0.85rem' }}>Features</Link>
+                  <Link to="/#how" className="nav-link" style={{ padding: '5px 8px', fontSize: '0.85rem' }}>How it works</Link>
+                  <Link to="/#roles" className="nav-link" style={{ padding: '5px 8px', fontSize: '0.85rem' }}>Roles</Link>
                 </>
               ) : (
                 <>
                   <Link
                     to="/patients"
                     className="nav-link"
-                    style={
-                      isPatientsActive
+                    style={{
+                      padding: '5px 8px',
+                      fontSize: '0.84rem',
+                      ...(isPatientsActive
                         ? { color: '#ffffff', fontWeight: 700, borderBottom: '2px solid #ab0520' }
-                        : {}
-                    }
+                        : {}),
+                    }}
                   >
                     Patients
                   </Link>
@@ -130,11 +153,13 @@ export default function Navbar() {
                   <Link
                     to="/tests/intake"
                     className="nav-link"
-                    style={
-                      isIntakeActive
+                    style={{
+                      padding: '5px 8px',
+                      fontSize: '0.84rem',
+                      ...(isIntakeActive
                         ? { color: '#ffffff', fontWeight: 700, borderBottom: '2px solid #ab0520' }
-                        : {}
-                    }
+                        : {}),
+                    }}
                     id="nav-test-intake-link"
                   >
                     Test Intake
@@ -143,23 +168,25 @@ export default function Navbar() {
                   <Link
                     to="/inventory"
                     className="nav-link"
-                    style={
-                      isInventoryActive
+                    style={{
+                      padding: '5px 8px',
+                      fontSize: '0.84rem',
+                      ...(isInventoryActive
                         ? { color: '#ffffff', fontWeight: 700, borderBottom: '2px solid #ab0520' }
-                        : {}
-                    }
+                        : {}),
+                    }}
                     id="nav-inventory-link"
                   >
                     Inventory
                     {totalAlerts > 0 && (
                       <span
                         style={{
-                          marginLeft: '6px',
+                          marginLeft: '5px',
                           background: '#ab0520',
                           color: '#ffffff',
-                          padding: '1px 6px',
+                          padding: '1px 5px',
                           borderRadius: '10px',
-                          fontSize: '0.7rem',
+                          fontSize: '0.68rem',
                           fontWeight: 700,
                         }}
                       >
@@ -171,27 +198,33 @@ export default function Navbar() {
                   <Link
                     to="/equipment/maintenance"
                     className="nav-link"
-                    style={
-                      isMaintenanceActive
+                    style={{
+                      padding: '5px 8px',
+                      fontSize: '0.84rem',
+                      ...(isMaintenanceActive
                         ? { color: '#ffffff', fontWeight: 700, borderBottom: '2px solid #ab0520' }
-                        : {}
-                    }
+                        : {}),
+                    }}
                     id="nav-equipment-maintenance-link"
+                    title="Equipment Maintenance"
                   >
-                    Equipment Maintenance
+                    Maintenance
                   </Link>
 
                   {isManager && (
                     <Link
                       to="/unlock-accounts"
                       className="nav-link"
-                      style={
-                        isUnlockActive
+                      style={{
+                        padding: '5px 8px',
+                        fontSize: '0.84rem',
+                        ...(isUnlockActive
                           ? { color: '#ffffff', fontWeight: 700, borderBottom: '2px solid #ab0520' }
-                          : {}
-                      }
+                          : {}),
+                      }}
+                      title="Unlock Accounts"
                     >
-                      Unlock Accounts
+                      Unlock Users
                     </Link>
                   )}
 
@@ -199,11 +232,14 @@ export default function Navbar() {
                     <Link
                       to="/activity-logs"
                       className="nav-link"
-                      style={
-                        location.pathname === '/activity-logs'
+                      style={{
+                        padding: '5px 8px',
+                        fontSize: '0.84rem',
+                        ...(location.pathname === '/activity-logs'
                           ? { color: '#ffffff', fontWeight: 700, borderBottom: '2px solid #ab0520' }
-                          : {}
-                      }
+                          : {}),
+                      }}
+                      title="Activity Logs"
                     >
                       Activity Logs
                     </Link>
@@ -213,8 +249,16 @@ export default function Navbar() {
             </div>
           </div>
 
-          {/* Right: Actions, Alerts, Persona Switcher & User Profile */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', flexShrink: 0 }}>
+          {/* Right: Actions, Alerts, Persona Switcher & User Profile (ALWAYS VISIBLE) */}
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '10px',
+              flexShrink: 0,
+              marginLeft: 'auto',
+            }}
+          >
             {isAuthenticated && hasInventoryAccess && (
               <button
                 type="button"
@@ -223,30 +267,31 @@ export default function Navbar() {
                 style={{
                   background: totalAlerts > 0 ? 'rgba(239, 68, 68, 0.25)' : 'rgba(255, 255, 255, 0.1)',
                   border: totalAlerts > 0 ? '1px solid #ef4444' : '1px solid rgba(255, 255, 255, 0.25)',
-                  borderRadius: '20px',
-                  padding: '5px 12px',
+                  borderRadius: '16px',
+                  padding: '4px 9px',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: '6px',
+                  gap: '4px',
                   cursor: 'pointer',
                   color: '#ffffff',
-                  fontSize: '0.825rem',
+                  fontSize: '0.78rem',
                   fontWeight: 600,
                   transition: 'all 0.15s ease',
+                  flexShrink: 0,
                 }}
               >
-                <span style={{ fontSize: '1rem' }}>🔔</span>
-                <span>Alerts</span>
+                <span style={{ fontSize: '0.9rem' }}>🔔</span>
+                <span className="alerts-btn-label">Alerts</span>
                 {totalAlerts > 0 && (
                   <span
                     style={{
                       background: '#ef4444',
                       color: '#ffffff',
                       borderRadius: '50%',
-                      padding: '1px 6px',
-                      fontSize: '0.725rem',
+                      padding: '1px 5px',
+                      fontSize: '0.7rem',
                       fontWeight: 700,
-                      lineHeight: 1.2,
+                      lineHeight: 1.1,
                     }}
                   >
                     {totalAlerts}
@@ -257,13 +302,13 @@ export default function Navbar() {
 
             {/* Persona role switcher for testing */}
             {isAuthenticated && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
                 <span
                   style={{
-                    fontSize: '0.75rem',
+                    fontSize: '0.7rem',
                     color: 'rgba(255,255,255,0.7)',
                     textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
+                    letterSpacing: '0.4px',
                   }}
                 >
                   Role:
@@ -276,10 +321,11 @@ export default function Navbar() {
                     color: '#ffffff',
                     border: '1px solid rgba(255,255,255,0.3)',
                     borderRadius: '4px',
-                    padding: '4px 8px',
-                    fontSize: '0.8rem',
+                    padding: '3px 6px',
+                    fontSize: '0.75rem',
                     outline: 'none',
                     cursor: 'pointer',
+                    maxWidth: '120px',
                   }}
                   title="Switch active role persona"
                 >
@@ -294,31 +340,45 @@ export default function Navbar() {
 
             {/* User Info & Logout */}
             {isAuthenticated && currentUser ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                 <div
+                  title={currentUser.email || currentUser.username}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px',
                     background: 'rgba(255,255,255,0.12)',
-                    padding: '4px 10px',
+                    padding: '3px 8px',
                     borderRadius: '6px',
                     border: '1px solid rgba(255,255,255,0.2)',
+                    maxWidth: '180px',
                   }}
                 >
-                  <span style={{ fontSize: '0.825rem', color: 'rgba(255,255,255,0.95)', fontWeight: 500 }}>
+                  <span
+                    style={{
+                      fontSize: '0.78rem',
+                      color: 'rgba(255,255,255,0.95)',
+                      fontWeight: 500,
+                      maxWidth: '110px',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      display: 'inline-block',
+                    }}
+                  >
                     {currentUser.email || currentUser.username}
                   </span>
                   <span
                     className="role-tag"
                     style={{
                       background: 'rgba(255,255,255,0.25)',
-                      padding: '2px 6px',
+                      padding: '1px 5px',
                       borderRadius: '4px',
-                      fontSize: '0.7rem',
+                      fontSize: '0.66rem',
                       textTransform: 'capitalize',
                       color: '#ffffff',
                       fontWeight: 600,
+                      flexShrink: 0,
                     }}
                   >
                     {currentUser.role}
@@ -331,17 +391,20 @@ export default function Navbar() {
                   style={{
                     border: 'none',
                     cursor: 'pointer',
-                    fontSize: '0.825rem',
-                    padding: '6px 14px',
+                    fontSize: '0.78rem',
+                    padding: '5px 12px',
+                    flexShrink: 0,
+                    whiteSpace: 'nowrap',
                   }}
                   onClick={handleSignOut}
+                  id="nav-signout-btn"
                 >
                   Sign out
                 </button>
               </div>
             ) : (
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <Link to="/signup" className="nav-link" style={{ fontSize: '0.9rem' }}>
+                <Link to="/signup" className="nav-link" style={{ fontSize: '0.85rem' }}>
                   Create account
                 </Link>
                 <Link
@@ -350,8 +413,8 @@ export default function Navbar() {
                   style={{
                     border: 'none',
                     cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    padding: '7px 16px',
+                    fontSize: '0.82rem',
+                    padding: '6px 14px',
                     textDecoration: 'none',
                   }}
                 >

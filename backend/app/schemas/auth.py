@@ -18,6 +18,10 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class SwitchRoleRequest(BaseModel):
+    role: str
+
+
 class RegisterRequest(BaseModel):
     username: str | None = None
     email: str | None = None

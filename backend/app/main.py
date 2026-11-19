@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.seed import seed_demo_users
 from contextlib import asynccontextmanager
 from app.models import user
-from app.routers import auth, patients, tests, inventory, maintenance, activity_logs
+from app.routers import auth, patients, tests, inventory, maintenance, activity_logs, purchases
 
 def ensure_schema_columns():
     user_columns = [
@@ -31,6 +31,12 @@ def ensure_schema_columns():
         ("insurance_provider", "VARCHAR(200)"),
         ("policy_number", "VARCHAR(100)"),
     ]
+    test_columns = [
+        ("barcode", "VARCHAR(100)"),
+        ("barcode_printed", "BOOLEAN DEFAULT FALSE"),
+        ("barcode_printed_at", "TIMESTAMP WITH TIME ZONE"),
+        ("barcode_printed_by_id", "INTEGER"),
+    ]
 
     with engine.connect() as conn:
         for col_name, col_type in user_columns:
@@ -53,6 +59,18 @@ def ensure_schema_columns():
                 try:
                     conn.rollback()
                     conn.execute(text(f"ALTER TABLE patients ADD COLUMN {col_name} {col_type};"))
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+
+        for col_name, col_type in test_columns:
+            try:
+                conn.execute(text(f"ALTER TABLE tests ADD COLUMN IF NOT EXISTS {col_name} {col_type};"))
+                conn.commit()
+            except Exception:
+                try:
+                    conn.rollback()
+                    conn.execute(text(f"ALTER TABLE tests ADD COLUMN {col_name} {col_type};"))
                     conn.commit()
                 except Exception:
                     conn.rollback()
@@ -98,3 +116,4 @@ app.include_router(tests.router)
 app.include_router(inventory.router)
 app.include_router(maintenance.router)
 app.include_router(activity_logs.router)
+app.include_router(purchases.router)
